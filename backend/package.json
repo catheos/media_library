@@ -1,6 +1,6 @@
 {
-  "name": "media_library",
-  "version": "1.0.0",
+  "name": "media_library_backend",
+  "version": "0.1.0",
   "main": "index.js",
   "license": "MIT",
   "scripts": {
