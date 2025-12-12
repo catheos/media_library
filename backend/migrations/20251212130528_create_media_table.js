@@ -1,0 +1,32 @@
+/**
+ * @param { import("knex").Knex } knex
+ * @returns { Promise<void> }
+ */
+exports.up = function(knex) {
+  return knex.schema.createTable('media', table => {
+    table.increments('id').primary();
+    table.string('title', 255).notNullable();
+    table.integer('type_id').unsigned().notNullable();
+    table.integer('release_year').nullable();
+    table.integer('status_id').unsigned().notNullable();
+    table.text('description').nullable();
+    
+    table.foreign('type_id')
+      .references('id')
+      .inTable('media_types')
+      .onDelete('RESTRICT');
+      
+    table.foreign('status_id')
+      .references('id')
+      .inTable('media_status_types')
+      .onDelete('RESTRICT');
+  });
+};
+
+/**
+ * @param { import("knex").Knex } knex
+ * @returns { Promise<void> }
+ */
+exports.down = function(knex) {
+  return knex.schema.dropTableIfExists('media');
+};
