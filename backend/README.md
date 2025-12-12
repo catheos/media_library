@@ -218,32 +218,94 @@ npm run seed:make add_default_media_types
 - **Connection Pooling:** Min: 2, Max: 10
 - **Authentication:** JWT + bcrypt password hashing
 
-### Database Schema
+markdown### Database Schema
 
 **Core Tables:**
-- `user` - User accounts with hashed passwords
+- `user` - User accounts with authentication
+  - `id` (PK, auto-increment)
+  - `username` (unique, indexed)
+  - `password` (bcrypt hashed)
+  - `created_at` (timestamp)
+
 - `media` - Media items (novels, TV series, anime, movies, comics, manga, video games)
-- `character` - Character information with flexible JSON details field
+  - `id` (PK, auto-increment)
+  - `title` (varchar 255)
+  - `media_type_id` (FK → media_types)
+  - `release_year` (integer, nullable)
+  - `media_status_id` (FK → media_status_types)
+  - `description` (text, nullable)
+
+- `character` - Character information with flexible JSON details
+  - `id` (PK, auto-increment)
+  - `name` (varchar 255)
+  - `details` (JSON, nullable) - Stores flexible character data (aliases, background, personality, appearance, relationships, species, gender, age, occupation, etc.)
+  - `wiki_url` (varchar 512, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+
 - `tag` - Tags for categorization
+  - `id` (PK, auto-increment)
+  - `name` (varchar 128)
+  - `tag_type_id` (FK → tag_types)
 
 **Lookup Tables (enum-like):**
 - `media_types` - Types of media
-- `media_status_types` - Production status (ongoing, completed, hiatus, upcoming)
-- `character_roles` - Character roles (protagonist, antagonist, supporting, cameo, guest)
-- `user_media_status_types` - User's consumption status (planning, watching, completed, dropped, on_hold)
-- `tag_types` - Tag categories (genre, theme, demographic)
+  - `id` (PK, auto-increment)
+  - `name` (varchar 64, unique) - Values: novel, tv_series, anime, movie, comic, manga, video_game
+
+- `media_status_types` - Production/release status
+  - `id` (PK, auto-increment)
+  - `name` (varchar 64, unique) - Values: ongoing, completed, hiatus, upcoming
+
+- `character_roles` - Character roles in media
+  - `id` (PK, auto-increment)
+  - `name` (varchar 64, unique) - Values: protagonist, antagonist, supporting, cameo, guest, deuteragonist, tritagonist
+
+- `user_media_status_types` - User's consumption status
+  - `id` (PK, auto-increment)
+  - `name` (varchar 64, unique) - Values: planning, watching, completed, dropped, on_hold
+
+- `tag_types` - Tag categories
+  - `id` (PK, auto-increment)
+  - `name` (varchar 64, unique) - Values: genre, theme, demographic
 
 **Junction Tables (many-to-many relationships):**
 - `media_character` - Links characters to media with their role
-- `media_tag` - Links tags to media
-- `user_media` - User's progress, ratings, and reviews for media
+  - `id` (PK, auto-increment)
+  - `media_id` (FK → media, CASCADE delete)
+  - `character_id` (FK → character, CASCADE delete)
+  - `role_id` (FK → character_roles, RESTRICT delete)
+  - Unique constraint: (`media_id`, `character_id`)
 
-### Naming Conventions
-- Tables: `snake_case` (e.g., `media_types`)
-- Columns: `snake_case` (e.g., `user_id`)
-- Primary keys: `id` (auto-increment)
-- Foreign keys: `<table>_id` (e.g., `media_id`)
-- Junction tables: `<table1>_<table2>` (e.g., `media_character`)
+- `media_tag` - Links tags to media
+  - `id` (PK, auto-increment)
+  - `media_id` (FK → media, CASCADE delete)
+  - `tag_id` (FK → tag, CASCADE delete)
+  - Unique constraint: (`media_id`, `tag_id`)
+
+- `user_media` - User's media tracking (progress, ratings, reviews)
+  - `id` (PK, auto-increment)
+  - `user_id` (FK → user, CASCADE delete)
+  - `media_id` (FK → media, CASCADE delete)
+  - `current_progress` (varchar 255, nullable) - e.g., "Season 2 Episode 5", "Chapter 120"
+  - `status_id` (FK → user_media_status_types, RESTRICT delete, nullable)
+  - `progress_updated` (timestamp, nullable)
+  - `score` (decimal 3,1, nullable) - Rating from 1.0 to 10.0
+  - `review` (text, nullable)
+  - `rating_created` (timestamp, nullable)
+  - `created_at` (timestamp)
+  - Unique constraint: (`user_id`, `media_id`)
+
+**Naming Conventions:**
+- Tables: `snake_case` (lowercase with underscores)
+- Primary keys: `id` (auto-increment integer)
+- Foreign keys: `<table>_id` (e.g., `media_id`, `user_id`)
+- Junction tables: `<table1>_<table2>` (alphabetically ordered)
+- All timestamps use MySQL `TIMESTAMP` type with `DEFAULT CURRENT_TIMESTAMP`
+
+**Foreign Key Constraints:**
+- CASCADE: Automatically delete related records when parent is deleted (used for junction tables and dependent data)
+- RESTRICT: Prevent deletion if referenced elsewhere (used for lookup/enum tables to maintain data integrity
 
 ## Environment-Specific Deployment
 

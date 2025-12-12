@@ -113,6 +113,48 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// Get current user's profile
+router.get('/profile', async (req: Request, res: Response) => {
+  try {
+    const user_id = req.user!.user_id;
+
+    const user = await db('user')
+      .where({ id: user_id })
+      .select('id', 'username', 'created_at')
+      .first();
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update current user's profile
+router.patch('/profile', async (req: Request, res: Response) => {
+  try {
+    const user_id = req.user!.user_id;
+    const { username } = req.body;
+
+    if (!username) {
+      res.status(400).json({ error: 'Username required' });
+      return;
+    }
+
+    await db('user')
+      .where({ id: user_id })
+      .update({ username });
+
+    res.json({ message: 'Profile updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get user by ID (public profile view)
 router.get('/:id', async (req: Request, res: Response) => {
   try {
