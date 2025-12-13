@@ -10,6 +10,12 @@ exports.up = function(knex) {
     table.integer('release_year').nullable();
     table.integer('status_id').unsigned().notNullable();
     table.text('description').nullable();
+    table.integer("created_by").unsigned().notNullable();
+
+    table.foreign('created_by')
+      .references('id')
+      .inTable('user')
+      .onDelete('RESTRICT');
     
     table.foreign('type_id')
       .references('id')

@@ -4,196 +4,211 @@ import { hashPassword, comparePassword, generateToken } from "../utils/auth";
 
 const router = express.Router();
 
-// Register user
-router.post('/register', async (req: Request, res: Response) => {
-  try {
-    const { username, password } = req.body || {};
+router.route('/register')
+  // POST new user
+  .post(async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body || {};
 
-    // Validate input
-    if (!username || !password) {
-      res.status(400).json({ error: 'Username and password required' });
-      return;
-    }
-
-    if (password.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' });
-      return;
-    }
-
-    // Check if user exists
-    const existingUser = await db('user')
-      .where({ username })
-      .first();
-
-    if (existingUser) {
-      res.status(409).json({ error: 'Username already exists' });
-      return;
-    }
-
-    // Hash password
-    const hashedPassword = await hashPassword(password);
-
-    // Create user
-    const [userId] = await db('user').insert({
-      username,
-      password: hashedPassword
-    });
-
-    // Generate token
-    const token = generateToken(userId);
-
-    res.status(201).json({
-      message: 'User registered successfully',
-      token,
-      user: {
-        id: userId,
-        username
+      // Validate input
+      if (!username || !password) {
+        res.status(400).json({ error: 'Username and password required' });
+        return;
       }
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
-// Login user
-router.post('/login', async (req: Request, res: Response) => {
-  try {
-    const { username, password } = req.body || {};
-
-    // Validate input
-    if (!username || !password) {
-      res.status(400).json({ error: 'Username and password required' });
-      return;
-    }
-
-    // Find user
-    const user = await db('user')
-      .where({ username })
-      .first();
-
-    if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    // Verify password
-    const isValid = await comparePassword(password, user.password);
-
-    if (!isValid) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    // Generate token
-    const token = generateToken(user.id);
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        username: user.username
+      if (password.length < 6) {
+        res.status(400).json({ error: 'Password must be at least 6 characters' });
+        return;
       }
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
-// Get all users
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const users = await db('user')
-      .select('id', 'username', 'created_at')
-      .orderBy('username', 'asc');
+      // Check if user exists
+      const existing_user = await db('user')
+        .where({ username })
+        .first();
 
-    res.json(users);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+      if (existing_user) {
+        res.status(409).json({ error: 'Username already exists' });
+        return;
+      }
 
-// Get current user's profile
-router.get('/profile', async (req: Request, res: Response) => {
-  try {
-    const user_id = req.user!.user_id;
+      // Hash password
+      const hashed_password = await hashPassword(password);
 
-    const user = await db('user')
-      .where({ id: user_id })
-      .select('id', 'username', 'created_at')
-      .first();
+      // Create user
+      const [user_id] = await db('user').insert({
+        username,
+        password: hashed_password
+      });
 
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
+      // Generate token
+      const token = generateToken(user_id);
+
+      res.status(201).json({
+        message: 'User registered successfully',
+        token,
+        user: {
+          id: user_id,
+          username
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
+  });
 
-    res.json(user);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.route('/login')
+  // POST login user
+  .post(async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body || {};
 
-// Update current user's profile
-router.patch('/profile', async (req: Request, res: Response) => {
-  try {
-    const user_id = req.user!.user_id;
-    const { username } = req.body;
+      // Validate input
+      if (!username || !password) {
+        res.status(400).json({ error: 'Username and password required' });
+        return;
+      }
 
-    if (!username) {
-      res.status(400).json({ error: 'Username required' });
-      return;
+      // Find user
+      const user = await db('user')
+        .where({ username })
+        .first();
+
+      if (!user) {
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      // Verify password
+      const isValid = await comparePassword(password, user.password);
+
+      if (!isValid) {
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      // Generate token
+      const token = generateToken(user.id);
+
+      res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          username: user.username
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
+  });
 
-    await db('user')
-      .where({ id: user_id })
-      .update({ username });
+router.route('/')
+  // GET all users
+  .get(async (req: Request, res: Response) => {
+    try {
+      const users = await db('user')
+        .select('id', 'username', 'created_at')
+        .orderBy('username', 'asc');
 
-    res.json({ message: 'Profile updated successfully' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get user by ID (public profile view)
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const user = await db('user')
-      .where({ id: parseInt(id) })
-      .select('id', 'username', 'created_at')
-      .first();
-
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
+      res.json(users);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
+  })
+  // DELETE current user
+  .delete(async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
 
-    res.json(user);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+      const deleted = await db('user')
+        .where({ id: user_id })
+        .delete();
 
-// Delete user
-router.delete('/', async (req: Request, res: Response) => {
-  try {
-    const user_id = req.user!.user_id;
+      if (!deleted) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
 
-    const deleted = await db('user')
-      .where({ id: user_id })
-      .delete();
-
-    if (!deleted) {
-      res.status(404).json({ error: 'User not found' });
-      return;
+      res.json({ message: 'User deleted successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
+  });
 
-    res.json({ message: 'User deleted successfully' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.route('/profile')
+  // GET current user
+  .get(async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+
+      const user = await db('user')
+        .where({ id: user_id })
+        .select('id', 'username', 'created_at')
+        .first();
+
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  })
+  // PATCH current user
+  .patch(async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+      const { username } = req.body;
+
+      if (!username) {
+        res.status(400).json({ error: 'Username required' });
+        return;
+      }
+
+      // Check if user exists
+      const existing_user = await db('user')
+        .where({ username })
+        .first();
+
+      if (existing_user) {
+        res.status(409).json({ error: 'Username already exists' });
+        return;
+      }
+
+      console.log(existing_user)
+
+      await db('user')
+        .where({ id: user_id })
+        .update({ username });
+
+      res.json({ message: 'Profile updated successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+router.route('/:id')
+  // GET user by ID
+  .get(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const user = await db('user')
+        .where({ id: parseInt(id) })
+        .select('id', 'username', 'created_at')
+        .first();
+
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
 module.exports = router;

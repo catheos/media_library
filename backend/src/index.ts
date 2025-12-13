@@ -29,10 +29,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // route imports
 const users = require("./routes/users");
 const media = require("./routes/media");
+const characters = require("./routes/characters");
+const media_characters = require("./routes/media-characters");
 
 // routes
 app.use("/api/users", users);
 app.use("/api/media", media);
+app.use("/api/characters", characters);
+app.use("/api/media-characters", media_characters);
 
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`)
