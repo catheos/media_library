@@ -7,18 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import Loading from "@/components/Loading";
-
-interface UserData {
-  id: number;
-  username: string;
-  created_at: string;
-}
+import { userService, ApiException } from "@/api";
+import type { User } from "@/api";
 
 const UserEdit = () => {
   const { id } = useParams();
   const { current_user, is_authenticated, is_loading, login } = useAuth();
   const navigate = useNavigate();
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     currentPassword: '',
@@ -38,23 +34,15 @@ const UserEdit = () => {
       setError('');
       
       try {
-        const response = await fetch(import.meta.env.VITE_API_HOST + '/api/users/profile', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.error || 'Failed to load user');
-          return;
-        }
-
+        const data = await userService.getProfile();
         setUser(data);
         setFormData(prev => ({ ...prev, username: data.username }));
       } catch (err) {
-        setError('An error occurred while loading the profile');
+        if (err instanceof ApiException) {
+          setError(err.message);
+        } else {
+          setError('An error occurred while loading the profile');
+        }
       } finally {
         setLoading(false);
       }
@@ -98,7 +86,7 @@ const UserEdit = () => {
       // Compare formData to original user data
       Object.keys(formData).forEach(key => {
         const formValue = formData[key as keyof typeof formData];
-        const originalValue = user?.[key as keyof UserData];
+        const originalValue = user?.[key as keyof User];
         
         // Only include if value changed and not empty password fields
         if (key === 'currentPassword' || key === 'newPassword' || key === 'confirmPassword') {
@@ -119,21 +107,7 @@ const UserEdit = () => {
         return;
       }
 
-      const response = await fetch(import.meta.env.VITE_API_HOST + `/api/users/profile`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Update failed');
-        return;
-      }
+      const data = await userService.updateProfile(body);
 
       // Update auth context if username changed
       if (data.user) {
@@ -155,7 +129,11 @@ const UserEdit = () => {
         navigate(`/users/${id}`);
       }, 2000);
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      if (err instanceof ApiException) {
+        setError(err.message);
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setSaving(false);
     }

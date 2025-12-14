@@ -4,17 +4,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/Loading";
-
-interface UserData {
-  id: number;
-  username: string;
-  created_at: string;
-}
+import { userService, ApiException } from "@/api";
+import type { User } from "@/api";
 
 const UserView = () => {
   const { id } = useParams();
   const { current_user, is_authenticated, is_loading, logout } = useAuth();
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -26,26 +22,17 @@ const UserView = () => {
       setError('');
       
       try {
-        const endpoint = isOwnProfile 
-          ? '/api/users/profile'
-          : `/api/users/${id}`;
+        const data = isOwnProfile 
+          ? await userService.getProfile()
+          : await userService.getUser(parseInt(id!));
         
-        const response = await fetch(import.meta.env.VITE_API_HOST + endpoint, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.error || 'Failed to load user');
-          return;
-        }
-
         setUser(data);
       } catch (err) {
-        setError('An error occurred while loading the profile');
+        if (err instanceof ApiException) {
+          setError(err.message);
+        } else {
+          setError('An error occurred while loading the profile');
+        }
       } finally {
         setLoading(false);
       }

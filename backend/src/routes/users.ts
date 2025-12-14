@@ -201,7 +201,7 @@ router.route('/profile')
         const isValidPassword = await comparePassword(currentPassword, user.password);
         
         if (!isValidPassword) {
-          res.status(401).json({ error: 'Current password is incorrect' });
+          res.status(400).json({ error: 'Current password is incorrect' });
           return;
         }
 

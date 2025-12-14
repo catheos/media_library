@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { userService, ApiException } from '@/api';
 
 interface User {
   id: number;
@@ -19,19 +20,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [current_user, setCurrentUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [is_loading, setIsLoading] = useState(true); // Add this
+  const [is_loading, setIsLoading] = useState(true);
 
-  // Load token and user from localStorage on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
     
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setCurrentUser(JSON.parse(storedUser));
+    if (!storedToken) {
+      setIsLoading(false);
+      return;
     }
-    
-    setIsLoading(false); // Done loading
+
+    const validateToken = async () => {
+      try {
+        const user = await userService.getProfile();
+        setToken(storedToken);
+        setCurrentUser(user);
+      } catch (error) {
+        // 401/403 handled automatically by api()
+        // 500..., use localstorage
+        if (!(error instanceof ApiException && (error.status === 401 || error.status === 403))) {
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            setToken(storedToken);
+            setCurrentUser(JSON.parse(storedUser));
+          }
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    validateToken();
   }, []);
 
   const login = (newToken: string, newUser: User) => {
@@ -39,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
     setCurrentUser(newUser);
+    window.location.href = `/users/${newUser.id}`;
   };
 
   const logout = () => {
@@ -46,6 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('user');
     setToken(null);
     setCurrentUser(null);
+    window.location.href = '/users/login';
   };
 
   const is_authenticated = !!token && !!current_user;
