@@ -160,30 +160,70 @@ router.route('/profile')
   .patch(async (req: Request, res: Response) => {
     try {
       const user_id = req.user!.user_id;
-      const { username } = req.body;
+      const { username, currentPassword, newPassword } = req.body;
 
-      if (!username) {
-        res.status(400).json({ error: 'Username required' });
+      // Check if anything was provided to update
+      if (!username && !newPassword) {
+        res.status(400).json({ error: 'No fields to update' });
         return;
       }
 
-      // Check if user exists
-      const existing_user = await db('user')
-        .where({ username })
-        .first();
+      const updates: any = {};
 
-      if (existing_user) {
-        res.status(409).json({ error: 'Username already exists' });
-        return;
+      // Handle username update if provided
+      if (username) {
+        // Check if username already exists for a DIFFERENT user
+        const existing_user = await db('user')
+          .where({ username })
+          .whereNot({ id: user_id })
+          .first();
+
+        if (existing_user) {
+          res.status(409).json({ error: 'Username already exists' });
+          return;
+        }
+
+        updates.username = username;
       }
 
-      console.log(existing_user)
+      // Handle password update if provided
+      if (newPassword) {
+        if (!currentPassword) {
+          res.status(400).json({ error: 'Current password required to change password' });
+          return;
+        }
 
+        // Verify current password
+        const user = await db('user')
+          .where({ id: user_id })
+          .first();
+
+        const isValidPassword = await comparePassword(currentPassword, user.password);
+        
+        if (!isValidPassword) {
+          res.status(401).json({ error: 'Current password is incorrect' });
+          return;
+        }
+
+        // Hash new password
+        updates.password = await hashPassword(newPassword);
+      }
+
+      // Apply updates
       await db('user')
         .where({ id: user_id })
-        .update({ username });
+        .update(updates);
 
-      res.json({ message: 'Profile updated successfully' });
+      // Get updated user data
+      const updated_user = await db('user')
+        .where({ id: user_id })
+        .select('id', 'username', 'created_at')
+        .first();
+
+      res.json({ 
+        message: 'Profile updated successfully',
+        user: updated_user 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
