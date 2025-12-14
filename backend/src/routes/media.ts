@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 const router = express.Router();
 import db from "../db";
+import { requireBody } from "../middleware/validateBody";
 
 router.route("/types")
   // GET media types
@@ -16,9 +17,23 @@ router.route("/types")
     }
   })
 
+router.route("/statuses")
+  // GET media statuses
+  .get(async(req: Request, res: Response) => {
+    try {
+      const media_status_types = await db('media_status_types')
+        .select('*')
+        .orderBy('name', 'asc');
+      
+      res.json(media_status_types)
+    } catch(error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  })
+
 router.route("/")
   // POST new media
-  .post(async (req: Request, res: Response) => {
+  .post(requireBody, async (req: Request, res: Response) => {
     try {
       const user_id = req.user!.user_id;
       const { title, type_id, release_year, status_id, description } = req.body;
@@ -126,11 +141,23 @@ router.route("/:id")
     }
   })
   // PATCH single media by ID
-  .patch(async (req: Request, res: Response) => {
+  .patch(requireBody, async (req: Request, res: Response) => {
     try {
       const user_id = req.user!.user_id;
       const { id } = req.params;
       const { title, type_id, release_year, status_id, description } = req.body;
+      
+      // Check if anything was provided to update
+      if (
+        title === undefined && 
+        type_id === undefined && 
+        release_year === undefined && 
+        status_id === undefined && 
+        description === undefined
+      ) {
+        res.status(400).json({ error: 'No fields to update' });
+        return;
+      }
 
       // Check if media exists
       const media = await db('media').where({ id: parseInt(id) }).first();
@@ -145,44 +172,95 @@ router.route("/:id")
         return;
       }
 
-      // Verify type_id if provided
-      if (type_id) {
+      const updates: any = {};
+
+      // Handle title update if provided
+      if (title !== undefined) {
+        if (!title || title.trim() === '') {
+          res.status(400).json({ error: 'Title cannot be empty' });
+          return;
+        }
+        updates.title = title;
+      }
+
+      // Handle type_id update if provided
+      if (type_id !== undefined) {
         const media_type = await db('media_types').where({ id: type_id }).first();
         if (!media_type) {
           res.status(400).json({ error: 'Invalid type_id' });
           return;
         }
+        updates.type_id = type_id;
       }
 
-      // Verify status_id if provided
-      if (status_id) {
+      // Handle release_year update if provided
+      if (release_year !== undefined) {
+        if (release_year !== null) {
+          const year = parseInt(release_year);
+          if (isNaN(year) || year < 1800 || year > 2100) {
+            res.status(400).json({ error: 'Invalid release year' });
+            return;
+          }
+          updates.release_year = year;
+        } else {
+          updates.release_year = null;
+        }
+      }
+
+      // Handle status_id update if provided
+      if (status_id !== undefined) {
         const media_status = await db('media_status_types').where({ id: status_id }).first();
         if (!media_status) {
           res.status(400).json({ error: 'Invalid status_id' });
           return;
         }
+        updates.status_id = status_id;
       }
 
-      // Build update object (only include provided fields)
-      const updates: any = {};
-      if (title !== undefined) updates.title = title;
-      if (type_id !== undefined) updates.type_id = type_id;
-      if (release_year !== undefined) updates.release_year = release_year;
-      if (status_id !== undefined) updates.status_id = status_id;
-      if (description !== undefined) updates.description = description;
+      // Handle description update if provided
+      if (description !== undefined) {
+        updates.description = description || null;
+      }
 
-      // Update media
+      // Apply updates
       await db('media')
         .where({ id: parseInt(id) })
         .update(updates);
 
+      // Get updated media data with joins
+      const updated_media = await db('media')
+        .select(
+          'media.id',
+          'media.title',
+          'media.release_year',
+          'media.description',
+          'media.created_by',
+          db.raw('json_object("id", media_types.id, "name", media_types.name) as type'),
+          db.raw('json_object("id", media_status_types.id, "name", media_status_types.name) as status'),
+          db.raw('json_object("id", user.id, "username", user.username) as created_by_user')
+        )
+        .leftJoin('media_types', 'media.type_id', 'media_types.id')
+        .leftJoin('media_status_types', 'media.status_id', 'media_status_types.id')
+        .leftJoin('user', 'media.created_by', 'user.id')
+        .where({ 'media.id': parseInt(id) })
+        .first();
+
+      // Parse JSON fields
+      const response_media = {
+        ...updated_media,
+        type: JSON.parse(updated_media.type),
+        status: JSON.parse(updated_media.status),
+        created_by: JSON.parse(updated_media.created_by_user)
+      };
+      delete response_media.created_by_user;
+
       res.json({
         message: 'Media updated successfully',
-        id: parseInt(id)
+        media: response_media
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  })
 
 module.exports = router;

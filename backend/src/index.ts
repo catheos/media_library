@@ -6,6 +6,7 @@ const port = process.env.PORT || 3000;
 
 // Middleware to parse JSON
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // middleware
 import { authenticate } from "./middleware/auth";

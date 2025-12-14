@@ -1,12 +1,13 @@
 import express, { Request, Response } from "express";
 import db from "../db";
 import { hashPassword, comparePassword, generateToken } from "../utils/auth";
+import { requireBody } from "../middleware/validateBody";
 
 const router = express.Router();
 
 router.route('/register')
   // POST new user
-  .post(async (req: Request, res: Response) => {
+  .post(requireBody, async (req: Request, res: Response) => {
     try {
       const { username, password } = req.body || {};
 
@@ -58,7 +59,7 @@ router.route('/register')
 
 router.route('/login')
   // POST login user
-  .post(async (req: Request, res: Response) => {
+  .post(requireBody, async (req: Request, res: Response) => {
     try {
       const { username, password } = req.body || {};
 
@@ -157,7 +158,7 @@ router.route('/profile')
     }
   })
   // PATCH current user
-  .patch(async (req: Request, res: Response) => {
+  .patch(requireBody, async (req: Request, res: Response) => {
     try {
       const user_id = req.user!.user_id;
       const { username, currentPassword, newPassword } = req.body;
