@@ -1,21 +1,34 @@
-import { useParams, Navigate, Link } from "react-router-dom";
+import { useParams, Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Loading from "@/components/Loading";
 import { mediaService, ApiException } from "@/api";
 import type { Media } from "@/api";
 
 const MediaView = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { current_user, is_authenticated, is_loading } = useAuth();
   const [media, setMedia] = useState<Media | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const isOwner = current_user?.id === media?.created_by.id;
 
@@ -67,6 +80,23 @@ const MediaView = () => {
       }
     };
   }, [id, is_authenticated]);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    
+    try {
+      await mediaService.deleteMedia(parseInt(id!));
+      console.log("test")
+      navigate('/media');
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message);
+      } else {
+        setError('An error occurred while deleting the media');
+      }
+      setDeleting(false);
+    }
+  };
 
   // Show loading while auth is initializing
   if (is_loading) {
@@ -142,9 +172,39 @@ const MediaView = () => {
                 <div className="flex items-start justify-between gap-4">
                   <CardTitle className="text-3xl">{media.title}</CardTitle>
                   {isOwner && (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/media/${id}/edit`}>Edit</Link>
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/media/${id}/edit`}>Edit</Link>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            disabled={deleting}
+                          >
+                            {deleting ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{media.title}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleDelete}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   )}
                 </div>
                 {media.release_year && (

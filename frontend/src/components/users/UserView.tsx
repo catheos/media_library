@@ -3,6 +3,17 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Loading from "@/components/Loading";
 import { userService, ApiException } from "@/api";
 import type { User } from "@/api";
@@ -102,9 +113,30 @@ const UserView = () => {
               <Button variant="outline" asChild>
                 <Link to={`/users/${id}/edit`}>Edit Profile</Link>
               </Button>
-              <Button className="text-white" variant="destructive" onClick={logout}>
-                Logout
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    Logout
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You will be logged out and redirected to the login page.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={logout}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Logout
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </CardHeader>

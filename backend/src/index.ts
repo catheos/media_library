@@ -11,15 +11,15 @@ app.use(express.urlencoded({ extended: true }));
 // middleware
 import { authenticate } from "./middleware/auth";
 
-const publicRoutes = [
-  '/api/users/register',
-  '/api/users/login'
+const publicRoutes: { method: string, path: string }[] = [
+  { method: "POST", path: "/api/users/register" },
+  { method: "POST", path: "/api/users/login" },
 ];
 
 // Global authentication middleware with exclusions
 app.use((req: Request, res: Response, next: NextFunction) => {
-  // Check if exact route is in public list
-  if (publicRoutes.includes(req.path)) {
+  // Check if route and method in publicRoutes
+  if (publicRoutes.some(route => route.method === req.method && route.path === req.path)) {
     return next();
   }
   

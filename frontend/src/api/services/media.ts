@@ -57,6 +57,10 @@ export interface UpdateMediaResponse {
   media: Media;
 }
 
+export interface DeleteMediaResponse {
+  error?: string;
+}
+
 export const mediaService = {
   // Get all media
   getAll: async (page?: number): Promise<PaginatedResponse> => {
@@ -115,6 +119,24 @@ export const mediaService = {
       method: 'PATCH',
       body: formData,
     });
+  },
+
+  deleteMedia: async (id: number): Promise<DeleteMediaResponse> => {
+    const response = await api(`/api/media/${id}`, {
+      method: 'DELETE',
+    });
+    
+    // Handle error
+    if (response.status === 204) {
+      return {};
+    };
+
+    const data: DeleteMediaResponse = await response.json();
+    if (data.error) {
+      throw new Error(data.error)
+    };
+
+    return data;
   },
 
   // Get all media types

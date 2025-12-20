@@ -356,6 +356,40 @@ router.route("/:id")
       res.status(500).json({ error: error.message });
     }
   })
+  // DELETE single media by ID
+  .delete(async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+      const { id } = req.params;
+
+      // Check if media exists
+      const media = await db('media').where({ id: parseInt(id) }).first();
+      if (!media) {
+        res.status(404).json({ error: 'Media not found' });
+        return;
+      }
+
+      // Check if user owns this media
+      if (media.created_by !== user_id) {
+        res.status(403).json({ error: 'You can only delete media you created' });
+        return;
+      }
+
+      // Remove cover file if exists
+      const image_path = path.join(process.cwd(), 'uploads', 'media', `${id}.webp`);
+      if (fs.existsSync(image_path)) {
+        fs.unlinkSync(image_path);
+      }
+
+      // Remove media record
+      await db('media').where({ id: parseInt(id) }).del();
+
+      res.status(204).send();
+
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  })
 
 router.route("/:id/cover")
   // GET media cover
