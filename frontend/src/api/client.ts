@@ -22,10 +22,13 @@ export const api = async (
 ): Promise<Response> => {
   const token = localStorage.getItem('token');
 
+  // Check if body is FormData
+  const isFormData = options.body instanceof FormData;
+
   const config: RequestInit = {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }), // Don't set Content-Type for FormData
       ...options.headers,
       ...(token && { 'Authorization': `Bearer ${token}` }),
     },

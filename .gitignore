@@ -32,3 +32,6 @@ coverage/
 
 # Optional
 .cache/
+
+# Created files
+uploads/

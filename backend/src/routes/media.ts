@@ -2,6 +2,24 @@ import express, { Request, Response } from "express";
 const router = express.Router();
 import db from "../db";
 import { requireBody } from "../middleware/validateBody";
+import { upload } from "../middleware/upload";
+import { processImage } from "../middleware/upload";
+import path from 'path';
+import fs from 'fs';
+
+// Define types
+interface MediaDbRow {
+  id: number;
+  title: string;
+  release_year: number | null;
+  description: string | null;
+  created_by: number;
+  type_id: number;
+  type_name: string;
+  status_id: number;
+  status_name: string;
+  created_by_username: string;
+}
 
 router.route("/types")
   // GET media types
@@ -32,15 +50,80 @@ router.route("/statuses")
   })
 
 router.route("/")
+  // GET all media with pagination
+  .get(async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const page_size = parseInt(process.env.MEDIA_PAGE_SIZE || '20');
+      const offset = (page - 1) * page_size;
+
+      // Get total count
+      const [{ count }] = await db('media').count('* as count');
+      const total = parseInt(count as string);
+      const total_pages = Math.ceil(total / page_size);
+
+      // Get paginated media
+      const media_list = await db('media')
+        .join('media_types', 'media.type_id', 'media_types.id')
+        .join('media_status_types', 'media.status_id', 'media_status_types.id')
+        .join('user', 'media.created_by', 'user.id')
+        .select(
+          'media.id',
+          'media.title',
+          'media.release_year',
+          'media.description',
+          'media.created_by',
+          'media_types.id as type_id',
+          'media_types.name as type_name',
+          'media_status_types.id as status_id',
+          'media_status_types.name as status_name',
+          'user.username as created_by_username'
+        )
+        .limit(page_size)
+        .offset(offset)
+        .orderBy('media.id', 'desc'); // or whatever order you prefer
+
+      // Format response
+      const media = media_list.map((media: MediaDbRow) => ({
+        id: media.id,
+        title: media.title,
+        type: {
+          id: media.type_id,
+          name: media.type_name
+        },
+        release_year: media.release_year,
+        status: {
+          id: media.status_id,
+          name: media.status_name
+        },
+        description: media.description,
+        created_by: {
+          id: media.created_by,
+          username: media.created_by_username
+        }
+      }));
+
+      res.json({
+        media,
+        total,
+        page,
+        page_size,
+        total_pages
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  })
   // POST new media
-  .post(requireBody, async (req: Request, res: Response) => {
+  .post(upload.single('image'), async (req: Request, res: Response) => {
     try {
       const user_id = req.user!.user_id;
       const { title, type_id, release_year, status_id, description } = req.body;
+      const image_file = req.file;
 
       // Validate required fields
-      if (!title || !type_id || !status_id) {
-        res.status(400).json({ error: 'title, type_id, and status_id are required' });
+      if (!title || !type_id || !status_id || !image_file) {
+        res.status(400).json({ error: 'title, type_id, status_id, and image file are required' });
         return;
       }
 
@@ -68,18 +151,29 @@ router.route("/")
         created_by: user_id
       });
 
-      res.status(201).json({
-        message: 'Media created successfully',
-        media: {
-          id: media_id,
-          title,
-          type_id,
-          release_year,
-          status_id,
-          description,
-          created_by: user_id
-        }
-      });
+      // Process and save images with media_id
+      try {
+        await processImage(image_file.path, media_id);
+        
+        // Success
+        res.status(201).json({
+          message: 'Media created successfully',
+          media: {
+            id: media_id,
+            title,
+            type_id,
+            release_year,
+            status_id,
+            description,
+            created_by: user_id
+          }
+        });
+
+      } catch (imageError) {
+        // delete media entry if image processing fails
+        await db('media').where({ id: media_id }).del();
+        throw new Error('failed to process image');
+      }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -262,5 +356,52 @@ router.route("/:id")
       res.status(500).json({ error: error.message });
     }
   })
+
+router.route("/:id/cover")
+  // GET media cover
+  .get(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    
+    const media = await db('media').where({ id: parseInt(id) }).first();
+    if (!media) {
+      res.status(404).json({ error: 'Media not found' });
+      return;
+    }
+
+    const image_path = path.join(process.cwd(), 'uploads', 'media', `${id}.webp`);
+    res.sendFile(image_path);
+  })
+  // PATCH media cover
+  .patch(upload.single('image'), async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+      const { id } = req.params;
+      const image_file = req.file;
+
+      if (!image_file) {
+        res.status(400).json({ error: 'Image file is required' });
+        return;
+      }
+
+      // Check if media exists and user owns it
+      const media = await db('media').where({ id: parseInt(id) }).first();
+      if (!media) {
+        res.status(404).json({ error: 'Media not found' });
+        return;
+      }
+
+      if (media.created_by !== user_id) {
+        res.status(403).json({ error: 'You can only edit media you created' });
+        return;
+      }
+
+      // Process and replace images
+      await processImage(image_file.path, parseInt(id));
+
+      res.json({ message: 'Cover updated successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
 module.exports = router;
