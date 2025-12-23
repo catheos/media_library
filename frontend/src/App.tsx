@@ -14,6 +14,10 @@ import MediaUpload from "./components/media/MediaUpload";
 import MediaList from "./components/media/MediaList";
 import MediaView from "./components/media/MediaView";
 import MediaEdit from "./components/media/MediaEdit";
+import CharacterUpload from "./components/characters/CharacterUpload";
+import CharacterView from "./components/characters/CharacterView";
+import CharacterList from "./components/characters/CharacterList";
+import CharacterEdit from "./components/characters/CharacterEdit";
 
 // Layout component
 function Layout() {
@@ -42,6 +46,10 @@ const router = createBrowserRouter([
       { path: "media", element: <MediaList />},
       { path: "media/:id", element: <MediaView />},
       { path: "media/:id/edit", element: <MediaEdit />},
+      { path: "characters/upload", element: <CharacterUpload />},
+      { path: "characters/:id", element: <CharacterView />},
+      { path: "characters/:id/edit", element: <CharacterEdit />},
+      { path: "characters", element: <CharacterList />},
     ],
   },
 ]);

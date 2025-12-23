@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Loader2 } from 'lucide-react';
 
 const navItems = [
+  { title: 'Characters', path: '/characters'},
   { title: 'Media', path: '/media' },
   { title: 'Upload', path: '/media/upload' },
 ];

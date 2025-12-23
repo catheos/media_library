@@ -1,76 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { mediaService, ApiException } from '@/api';
-import type { MediaType, MediaStatus } from '@/api';
+import { characterService, ApiException } from '@/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
 import { Loader2 } from 'lucide-react';
 import Loading from '@/components/Loading';
 
-const MediaUpload = () => {
+const CharacterUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    title: '',
-    type_id: '',
-    release_year: '',
-    status_id: '',
-    description: '',
+    name: '',
+    wiki_url: '',
+    details: '',
   });
   const [image, setImage] = useState<File[] | undefined>();
   const [showPreview, setShowPreview] = useState(false);
-  const [mediaTypes, setMediaTypes] = useState<MediaType[]>([]);
-  const [statusTypes, setStatusTypes] = useState<MediaStatus[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // Fetch media types and status types on mount
-  useEffect(() => {
-    const fetchOptions = async () => {
-      setLoading(true);
-      try {
-        const [types, statuses] = await Promise.all([
-          mediaService.getTypes(),
-          mediaService.getStatuses(),
-        ]);
-        
-        setMediaTypes(types);
-        setStatusTypes(statuses);
-      } catch (err) {
-        if (err instanceof ApiException) {
-          setError(err.message);
-        } else {
-          setError('An error occurred while loading options');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (is_authenticated) {
-      fetchOptions();
-    }
-  }, [is_authenticated]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData({
-      ...formData,
-      [name]: value,
     });
   };
 
@@ -88,34 +46,39 @@ const MediaUpload = () => {
     setError('');
     setSuccess('');
 
-    if (!formData.title || !formData.type_id || !formData.status_id) {
-      setError('Title, type, and status are required');
-      return;
-    }
-
-    if (!image || !image[0]) {
-      setError('Cover image is required');
+    if (!formData.name.trim()) {
+      setError('Character name is required');
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const response = await mediaService.create(
+      // Parse details as JSON if provided
+      let parsedDetails = null;
+      if (formData.details.trim()) {
+        try {
+          parsedDetails = JSON.parse(formData.details);
+        } catch {
+          setError('Details must be valid JSON');
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const response = await characterService.create(
         {
-          title: formData.title,
-          type_id: parseInt(formData.type_id),
-          release_year: formData.release_year ? parseInt(formData.release_year) : undefined,
-          status_id: parseInt(formData.status_id),
-          description: formData.description || undefined,
+          name: formData.name.trim(),
+          details: parsedDetails,
+          wiki_url: formData.wiki_url.trim() || undefined,
         },
-        image[0]
+        image?.[0]
       );
 
-      setSuccess('Media created successfully!');
+      setSuccess('Character created successfully!');
       
       setTimeout(() => {
-        navigate(`/media/${response.media.id}`);
+        navigate(`/characters/${response.character.id}`);
       }, 2000);
     } catch (err) {
       if (err instanceof ApiException) {
@@ -136,34 +99,30 @@ const MediaUpload = () => {
     return <Navigate to="/users/login" replace />;
   }
 
-  if (loading) {
-    return <Loading fullScreen />;
-  }
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Navigation between upload types */}
       <div className="flex gap-2 pt-4">
         <Button 
-          variant="default"
-          disabled
-          className="flex-1 rounded-bl-none rounded-br-none border-b-0"
-        >
-          Media
-        </Button>
-        <Button 
           variant="outline" 
           asChild
           className="flex-1 rounded-bl-none rounded-br-none border-b-0"
         >
-          <Link to="/characters/upload">Character</Link>
+          <Link to="/media/upload">Media</Link>
+        </Button>
+        <Button 
+          variant="default"
+          disabled
+          className="flex-1 rounded-bl-none rounded-br-none border-b-0"
+        >
+          Character
         </Button>
       </div>
       <Card className="rounded-tl-none rounded-tr-none">
         <CardHeader>
-          <CardTitle className="text-3xl">Upload Media</CardTitle>
+          <CardTitle className="text-3xl">Create Character</CardTitle>
           <CardDescription>
-            Add a new movie, TV show, or other media to your collection
+            Add a new character to the database
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,94 +139,60 @@ const MediaUpload = () => {
               </div>
             )}
 
-            {/* Title */}
+            {/* Name */}
             <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
+              <Label htmlFor="name">Character Name *</Label>
               <Input
-                id="title"
-                name="title"
+                id="name"
+                name="name"
                 type="text"
-                placeholder="Enter media title"
-                value={formData.title}
+                placeholder="Enter character name"
+                value={formData.name}
                 onChange={handleChange}
                 required
                 autoFocus
               />
+              <p className="text-sm text-muted-foreground">
+                Note: Multiple characters can have the same name if they're from different series
+              </p>
             </div>
 
-            {/* Type */}
+            {/* Wiki URL */}
             <div className="space-y-2">
-              <Label htmlFor="type_id">Type *</Label>
-              <Select
-                value={formData.type_id}
-                onValueChange={(value: string) => handleSelectChange('type_id', value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select media type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mediaTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id.toString()}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Release Year */}
-            <div className="space-y-2">
-              <Label htmlFor="release_year">Release Year</Label>
+              <Label htmlFor="wiki_url">Wiki URL</Label>
               <Input
-                id="release_year"
-                name="release_year"
-                type="number"
-                placeholder="2024"
-                min="1800"
-                max="2100"
-                value={formData.release_year}
+                id="wiki_url"
+                name="wiki_url"
+                type="url"
+                placeholder="https://example.fandom.com/wiki/Character_Name"
+                value={formData.wiki_url}
                 onChange={handleChange}
               />
+              <p className="text-sm text-muted-foreground">
+                Optional link to character's wiki page
+              </p>
             </div>
 
-            {/* Status */}
+            {/* Details */}
             <div className="space-y-2">
-              <Label htmlFor="status_id">Status *</Label>
-              <Select
-                value={formData.status_id}
-                onValueChange={(value: string) => handleSelectChange('status_id', value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusTypes.map((status) => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
-                      {status.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="details">Details (JSON)</Label>
               <Textarea
-                id="description"
-                name="description"
-                placeholder="Enter a description (optional)"
-                rows={4}
-                value={formData.description}
+                id="details"
+                name="details"
+                placeholder='{"age": 25, "species": "Human", "occupation": "Detective"}'
+                rows={6}
+                value={formData.details}
                 onChange={handleChange}
+                className="font-mono text-sm"
               />
+              <p className="text-sm text-muted-foreground">
+                Optional character details as JSON. Example: {`{"age": 25, "species": "Human"}`}
+              </p>
             </div>
 
             {/* Image Upload */}
             <div className="space-y-2">
-              <Label>Cover Image *</Label>
+              <Label>Character Image *</Label>
               <Dropzone
                 accept={{
                   'image/jpeg': ['.jpg', '.jpeg'],
@@ -334,12 +259,12 @@ const MediaUpload = () => {
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={submitting} className="flex-1">
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {submitting ? 'Creating...' : 'Create Media'}
+                {submitting ? 'Creating...' : 'Create Character'}
               </Button>
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => navigate('/media')}
+                onClick={() => navigate('/characters')}
                 className="flex-1"
               >
                 Cancel
@@ -352,4 +277,4 @@ const MediaUpload = () => {
   );
 };
 
-export default MediaUpload;
+export default CharacterUpload;

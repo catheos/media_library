@@ -153,7 +153,12 @@ router.route("/")
 
       // Process and save images with media_id
       try {
-        await processImage(image_file.path, media_id);
+        await processImage({
+          temp_path: image_file.path,
+          id: parseInt(media_id),
+          folder: 'media',
+          generate_thumbnail: true
+        });
         
         // Success
         res.status(201).json({
@@ -430,7 +435,12 @@ router.route("/:id/cover")
       }
 
       // Process and replace images
-      await processImage(image_file.path, parseInt(id));
+      await processImage({
+        temp_path: image_file.path,
+        id: parseInt(id),
+        folder: 'media',
+        generate_thumbnail: true
+      });
 
       res.json({ message: 'Cover updated successfully' });
     } catch (error: any) {

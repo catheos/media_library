@@ -4,12 +4,27 @@ import fs from 'fs';
 import crypto from 'crypto';
 import sharp from 'sharp';
 
-// Ensure upload directories exist
-const uploadDir = path.join(process.cwd(), 'uploads', 'media');
-const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+export interface ProcessImageOptions {
+  temp_path: string;
+  id: number;
+  folder: string; // e.g., 'media' or 'characters'
+  generate_thumbnail?: boolean;
+  thumbnail_size?: { width: number; height: number };
+  quality?: number;
+  thumbnail_quality?: number;
+}
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Ensure upload directories exist
+const uploadDir = path.join(process.cwd(), 'uploads');
+const mediaDir = path.join(uploadDir, 'media');
+const charactersDir = path.join(uploadDir, 'characters');
+const tempDir = path.join(uploadDir, 'temp');
+
+if (!fs.existsSync(mediaDir)) {
+  fs.mkdirSync(mediaDir, { recursive: true });
+}
+if (!fs.existsSync(charactersDir)) {
+  fs.mkdirSync(charactersDir, { recursive: true });
 }
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
@@ -55,43 +70,62 @@ export const upload = multer({
 });
 
 // Process and save image after upload
-export const processImage = async (tempPath: string, mediaId: number): Promise<{ imagePath: string, thumbPath: string }> => {
+export const processImage = async (options: ProcessImageOptions): Promise<{ imagePath: string, thumbPath?: string }> => {
+  const {
+    temp_path,
+    id,
+    folder,
+    generate_thumbnail = true,
+    thumbnail_size = { width: 300, height: 300 },
+    quality = 85,
+    thumbnail_quality = 80
+  } = options;
+
   try {
     // Validate it's a real image
-    const metadata = await sharp(tempPath).metadata();
+    const metadata = await sharp(temp_path).metadata();
     
     if (!metadata.width || !metadata.height) {
       throw new Error('Invalid image metadata');
     }
 
-    const imagePath = path.join(uploadDir, `${mediaId}.webp`);
-    const thumbPath = path.join(uploadDir, `${mediaId}_thumb.webp`);
+    const uploadFolder = path.join(uploadDir, folder);
+    
+    // Ensure folder exists
+    if (!fs.existsSync(uploadFolder)) {
+      fs.mkdirSync(uploadFolder, { recursive: true });
+    }
+
+    const imagePath = path.join(uploadFolder, `${id}.webp`);
+    const thumbPath = generate_thumbnail ? path.join(uploadFolder, `${id}_thumb.webp`) : undefined;
 
     // Save full-size image as WebP (optimized)
-    await sharp(tempPath)
-      .webp({ quality: 85 })
+    await sharp(temp_path)
+      .webp({ quality })
       .toFile(imagePath);
 
-    // Create thumbnail (300x300 cover)
-    await sharp(tempPath)
-      .resize(300, 300, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .webp({ quality: 80 })
-      .toFile(thumbPath);
+    // Create thumbnail if requested
+    if (generate_thumbnail && thumbPath) {
+      await sharp(temp_path)
+        .resize(thumbnail_size.width, thumbnail_size.height, {
+          fit: 'cover',
+          position: 'center'
+        })
+        .webp({ quality: thumbnail_quality })
+        .toFile(thumbPath);
+    }
 
     // Delete temp file
-    fs.unlinkSync(tempPath);
+    fs.unlinkSync(temp_path);
 
     return {
-      imagePath: `/uploads/media/${mediaId}.webp`,
-      thumbPath: `/uploads/media/${mediaId}_thumb.webp`
+      imagePath: `/uploads/${folder}/${id}.webp`,
+      thumbPath: generate_thumbnail ? `/uploads/${folder}/${id}_thumb.webp` : undefined
     };
   } catch (error) {
     // Clean up temp file if processing fails
-    if (fs.existsSync(tempPath)) {
-      fs.unlinkSync(tempPath);
+    if (fs.existsSync(temp_path)) {
+      fs.unlinkSync(temp_path);
     }
     throw error;
   }

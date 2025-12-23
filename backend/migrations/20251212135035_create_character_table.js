@@ -10,6 +10,12 @@ exports.up = function(knex) {
     table.string('wiki_url', 512).nullable();
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());
+    table.integer("created_by").unsigned().notNullable();
+    
+    table.foreign('created_by')
+      .references('id')
+      .inTable('user')
+      .onDelete('RESTRICT');
   });
 };
 

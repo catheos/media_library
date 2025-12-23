@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Loading from "@/components/Loading";
-import { mediaService, ApiException } from "@/api";
-import type { PaginatedResponse } from "@/api";
+import { characterService, ApiException } from "@/api";
+import type { CharacterListResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 
 import {
@@ -17,19 +17,19 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Component to handle individual media card with image fetching
-const MediaCard = ({ media }: { media: any }) => {
+// Component to handle individual character card with image fetching
+const CharacterCard = ({ character }: { character: any }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFail, setImageFail] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchImage = async () => {
       try {
-        const blob = await mediaService.getSingleCover(media.id);
+        const blob = await characterService.getSingleCover(character.id);
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
       } catch (err) {
-        setImageFail(true)
+        setImageFail(true);
       }
     };
 
@@ -40,55 +40,47 @@ const MediaCard = ({ media }: { media: any }) => {
         URL.revokeObjectURL(imageUrl);
       }
     };
-  }, [media.id]);
+  }, [character.id]);
 
   return (
-    <Link to={`/media/${media.id}`}>
+    <Link to={`/characters/${character.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
         <div className="aspect-[2/3] bg-muted relative">
           {imageUrl ? (
             <img
               src={imageUrl}
-              alt={media.title}
+              alt={character.name}
               className="w-full h-full object-cover"
             />
           ) : !imageFail ? (
             <div className="w-full h-full flex items-center justify-center">
-              < Loading />
+              <Loading />
             </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              Failed
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              No Image
             </div>
           )}
         </div>
         <CardContent className="p-4 space-y-2">
-          <h3 className="font-semibold truncate">{media.title}</h3>
-          {media.release_year && (
+          <h3 className="font-semibold truncate">{character.name}</h3>
+          {character.media_count !== undefined && (
             <p className="text-sm text-muted-foreground">
-              {media.release_year}
+              {character.media_count} {character.media_count === 1 ? 'appearance' : 'appearances'}
             </p>
           )}
-          <div className="flex gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs">
-              {media.type.name}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {media.status.name}
-            </Badge>
-          </div>
         </CardContent>
       </Card>
     </Link>
   );
 };
 
-const MediaList = () => {
+const CharacterList = () => {
   const { is_authenticated, is_loading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1');
   
-  const [data, setData] = useState<PaginatedResponse | null>(null);
+  const [data, setData] = useState<CharacterListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -97,18 +89,18 @@ const MediaList = () => {
   useScrollRestoration(contentReady);
 
   useEffect(() => {
-    const fetchMedia = async () => {
+    const fetchCharacters = async () => {
       setLoading(true);
       setError('');
       
       try {
-        const response = await mediaService.getAll(page);
+        const response = await characterService.getAll(page);
         setData(response);
       } catch (err) {
         if (err instanceof ApiException) {
           setError(err.message);
         } else {
-          setError('An error occurred while loading media');
+          setError('An error occurred while loading characters');
         }
       } finally {
         setLoading(false);
@@ -116,7 +108,7 @@ const MediaList = () => {
     };
 
     if (is_authenticated) {
-      fetchMedia();
+      fetchCharacters();
     }
   }, [page, is_authenticated]);
 
@@ -154,12 +146,12 @@ const MediaList = () => {
     );
   }
 
-  // No media data
-  if (!data || data.media.length === 0) {
+  // No characters data
+  if (!data || data.characters.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center justify-center py-8">
-          <p>No media found</p>
+          <p>No characters found</p>
         </div>
       </div>
     );
@@ -168,10 +160,10 @@ const MediaList = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="space-y-8">
-        {/* Media grid */}
+        {/* Characters grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {data.media.map((media) => (
-            <MediaCard key={media.id} media={media} />
+          {data.characters.map((character) => (
+            <CharacterCard key={character.id} character={character} />
           ))}
         </div>
 
@@ -211,4 +203,4 @@ const MediaList = () => {
   );
 };
 
-export default MediaList;
+export default CharacterList;
