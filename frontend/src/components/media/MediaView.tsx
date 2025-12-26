@@ -16,16 +16,21 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Loading from "@/components/Loading";
-import { mediaService, mediaCharacterService, ApiException } from "@/api";
+import { mediaService, mediaCharacterService, characterService, ApiException } from "@/api";
 import type { Media, MediaCharacter } from "@/api";
 import { User } from "lucide-react";
+
+interface CharacterWithImage extends MediaCharacter {
+  imageUrl?: string;
+  imageFailed?: boolean;
+}
 
 const MediaView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { current_user, is_authenticated, is_loading } = useAuth();
   const [media, setMedia] = useState<Media | null>(null);
-  const [characters, setCharacters] = useState<MediaCharacter[]>([]);
+  const [characters, setCharacters] = useState<CharacterWithImage[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
@@ -65,7 +70,18 @@ const MediaView = () => {
       
       try {
         const data = await mediaCharacterService.getAll(parseInt(id!));
-        setCharacters(data.characters);
+        const charactersWithImages = await Promise.all(
+          data.characters.map(async (char) => {
+            try {
+              const blob = await characterService.getSingleCover(char.character.id);
+              const url = URL.createObjectURL(blob);
+              return { ...char, imageUrl: url, imageFailed: false };
+            } catch (err) {
+              return { ...char, imageFailed: true };
+            }
+          })
+        );
+        setCharacters(charactersWithImages);
       } catch (err) {
         console.error('Failed to load characters:', err);
       } finally {
@@ -76,6 +92,17 @@ const MediaView = () => {
     if (is_authenticated && id) {
       fetchCharacters();
     }
+
+    return () => {
+      setCharacters((prevCharacters) => {
+        prevCharacters.forEach((char) => {
+          if (char.imageUrl) {
+            URL.revokeObjectURL(char.imageUrl);
+          }
+        });
+        return prevCharacters;
+      });
+    };
   }, [id, is_authenticated]);
 
   useEffect(() => {
@@ -285,19 +312,31 @@ const MediaView = () => {
                   <Link
                     key={mc.id}
                     to={`/media-character/${mc.id}`}
-                    className="flex-shrink-0 group"
+                    className="flex-shrink-0 group block"
                   >
-                    <div className="w-32 space-y-2">
-                      <div className="w-32 h-32 rounded-lg bg-muted flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
-                        <User className="w-12 h-12 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
-                          {mc.character.name}
-                        </p>
-                        <Badge variant="secondary" className="text-xs">
-                          {mc.role.name}
-                        </Badge>
+                    <div className="w-32 p-3 rounded-lg bg-muted/50 transition-transform group-hover:scale-105">
+                      <div className="space-y-2">
+                        <div className="aspect-[3/4] rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                          {mc.imageUrl ? (
+                            <img
+                              src={mc.imageUrl}
+                              alt={mc.character.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : mc.imageFailed ? (
+                            <User className="w-10 h-10 text-muted-foreground" />
+                          ) : (
+                            <Loading />
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-medium text-sm truncate" title={mc.character.name}>
+                            {mc.character.name}
+                          </p>
+                          <Badge variant="secondary" className="text-xs">
+                            {mc.role.name}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </Link>
