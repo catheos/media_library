@@ -259,14 +259,6 @@ router.route("/:id")
         .count('* as count')
         .first();
 
-      if (usage_count && parseInt(usage_count.count as string) > 0) {
-        res.status(409).json({ 
-          error: 'Cannot delete character that is associated with media',
-          media_count: parseInt(usage_count.count as string)
-        });
-        return;
-      }
-
       // Delete character
       await db('character').where({ id: parseInt(id) }).del();
 
