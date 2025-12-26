@@ -158,7 +158,7 @@ const MediaCharacterView = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Character Card */}
-        <Card className="md:col-span-1">
+        <Card className="md:col-span-1 md:self-start">
           <CardHeader>
             <CardTitle className="text-md flex items-center gap-2">
               <User className="w-5 h-5" />
@@ -215,9 +215,6 @@ const MediaCharacterView = () => {
                 </CardTitle>
                 {isOwner && (
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/media-character/${id}/edit`}>Edit</Link>
-                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button 

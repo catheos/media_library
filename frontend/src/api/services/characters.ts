@@ -3,7 +3,7 @@ import { api } from '../client';
 export interface Character {
   id: number;
   name: string;
-  details: Record<string, any> | null;
+  details: string | null; 
   wiki_url: string | null;
   created_at: string;
   updated_at: string;
@@ -45,7 +45,7 @@ export interface CharacterMediaListResponse {
 
 export interface CreateCharacterRequest {
   name: string;
-  details?: Record<string, any> | null;
+  details?: string;
   wiki_url?: string;
 }
 
@@ -56,7 +56,7 @@ export interface CreateCharacterResponse {
 
 export interface UpdateCharacterRequest {
   name?: string;
-  details?: Record<string, any> | null;
+  details?: string;
   wiki_url?: string;
 }
 
@@ -82,7 +82,7 @@ export const characterService = {
       ? (() => {
           const formData = new FormData();
           formData.append('name', data.name);
-          if (data.details) formData.append('details', JSON.stringify(data.details));
+          if (data.details) formData.append('details', data.details);
           if (data.wiki_url) formData.append('wiki_url', data.wiki_url);
           formData.append('image', image);
           return formData;

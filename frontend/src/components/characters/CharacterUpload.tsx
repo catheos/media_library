@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
 import { Loader2 } from 'lucide-react';
 import Loading from '@/components/Loading';
+import MDEditor from '@uiw/react-md-editor';
 
 const CharacterUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -27,10 +27,17 @@ const CharacterUpload = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleDetailsChange = (value?: string) => {
+    setFormData({
+      ...formData,
+      details: value || '',
     });
   };
 
@@ -56,22 +63,10 @@ const CharacterUpload = () => {
     setSubmitting(true);
 
     try {
-      // Parse details as JSON if provided
-      let parsedDetails = null;
-      if (formData.details.trim()) {
-        try {
-          parsedDetails = JSON.parse(formData.details);
-        } catch {
-          setError('Details must be valid JSON');
-          setSubmitting(false);
-          return;
-        }
-      }
-
       const response = await characterService.create(
         {
           name: formData.name.trim(),
-          details: parsedDetails,
+          details: formData.details.trim() || undefined,
           wiki_url: formData.wiki_url.trim() || undefined,
         },
         image?.[0]
@@ -154,7 +149,7 @@ const CharacterUpload = () => {
                 type="text"
                 placeholder="Enter character name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 required
                 autoFocus
               />
@@ -172,27 +167,29 @@ const CharacterUpload = () => {
                 type="url"
                 placeholder="https://example.fandom.com/wiki/Character_Name"
                 value={formData.wiki_url}
-                onChange={handleChange}
+                onChange={handleInputChange}
               />
               <p className="text-sm text-muted-foreground">
                 Optional link to character's wiki page
               </p>
             </div>
 
-            {/* Details */}
+            {/* Details - Markdown Editor */}
             <div className="space-y-2">
-              <Label htmlFor="details">Details (JSON)</Label>
-              <Textarea
-                id="details"
-                name="details"
-                placeholder='{"age": 25, "species": "Human", "occupation": "Detective"}'
-                rows={6}
-                value={formData.details}
-                onChange={handleChange}
-                className="font-mono text-sm"
-              />
+              <Label htmlFor="details">Details (Markdown)</Label>
+              <div data-color-mode="light">
+                <MDEditor
+                  value={formData.details}
+                  onChange={handleDetailsChange}
+                  height={200}
+                  preview="live"
+                  hideToolbar={false}
+                  enableScroll={true}
+                  visibleDragbar={true}
+                />
+              </div>
               <p className="text-sm text-muted-foreground">
-                Optional character details as JSON. Example: {`{"age": 25, "species": "Human"}`}
+                Character details in markdown format. The editor shows live preview as you type.
               </p>
             </div>
 

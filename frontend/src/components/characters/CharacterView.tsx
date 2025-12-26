@@ -3,7 +3,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,10 +14,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, User } from "lucide-react";
 import Loading from "@/components/Loading";
 import { characterService, ApiException } from "@/api";
 import type { Character } from "@/api";
+import MDEditor from '@uiw/react-md-editor';
 
 const CharacterView = () => {
   const { id } = useParams();
@@ -74,7 +74,6 @@ const CharacterView = () => {
       fetchImage();
     }
 
-    // Cleanup blob URL
     return () => {
       if (imageUrl) {
         URL.revokeObjectURL(imageUrl);
@@ -98,22 +97,18 @@ const CharacterView = () => {
     }
   };
 
-  // Show loading while auth is initializing
   if (is_loading) {
     return <Loading fullScreen />;
   }
 
-  // Not authenticated
   if (!is_authenticated) {
     return <Navigate to="/users/login" replace />;
   }
 
-  // Loading state
   if (loading) {
     return <Loading fullScreen />;
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -132,7 +127,6 @@ const CharacterView = () => {
     );
   }
 
-  // No character data
   if (!character) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -141,100 +135,84 @@ const CharacterView = () => {
     );
   }
 
-  // Render character
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Character Image */}
-            {(imageUrl || !imageFailed) && (
-              <div className="w-full md:w-64 flex-shrink-0 aspect-[2/3]">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt={character.name}
-                    className="w-full rounded-lg object-cover aspect-[2/3]"
-                  />
-                ) : !imageFailed ? (
-                  <div className="w-full h-full flex items-center justify-center bg-muted rounded-lg">
-                    <Loading />
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Character Info */}
-            <div className="flex-1 space-y-4">
-              <div>
-                <div className="flex items-start justify-between gap-4">
-                  <CardTitle className="text-3xl">{character.name}</CardTitle>
-                  {isOwner && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/characters/${id}/edit`}>Edit</Link>
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            disabled={deleting}
-                          >
-                            {deleting ? 'Deleting...' : 'Delete'}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete "{character.name}". This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleDelete}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {character.wiki_url && (
-                <div>
-                  <Button variant="outline" size="sm" asChild>
-                    <a 
-                      href={character.wiki_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2"
-                    >
-                      View Wiki
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </div>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Character Image */}
+        <Card className="md:col-span-1 md:self-start">
+          <CardContent className="p-6">
+            <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={character.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : imageFailed ? (
+                <User className="w-20 h-20 text-muted-foreground" />
+              ) : (
+                <Loading />
               )}
+            </div>
+          </CardContent>
+        </Card>
 
-              {character.details && Object.keys(character.details).length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Details</h3>
-                  <div className="space-y-1">
-                    {Object.entries(character.details).map(([key, value]) => (
-                      <div key={key} className="flex gap-2">
-                        <span className="font-medium capitalize">{key}:</span>
-                        <span className="text-muted-foreground">{String(value)}</span>
-                      </div>
-                    ))}
+        {/* Character Info */}
+        <div className="md:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <CardTitle className="text-3xl">{character.name}</CardTitle>
+                {isOwner && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/characters/${id}/edit`}>Edit</Link>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          disabled={deleting}
+                        >
+                          {deleting ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete "{character.name}". This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {character.wiki_url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a 
+                    href={character.wiki_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2"
+                  >
+                    View Wiki
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
               )}
 
               {character.created_by && (
@@ -250,10 +228,30 @@ const CharacterView = () => {
                   </p>
                 </div>
               )}
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Details Section - Markdown Display */}
+          {character.details && character.details.trim() && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div data-color-mode="light">
+                  <MDEditor.Markdown 
+                    source={character.details} 
+                    style={{ 
+                      padding: '1rem',
+                      backgroundColor: 'transparent'
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

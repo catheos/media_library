@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
 import { Loader2 } from "lucide-react";
 import Loading from "@/components/Loading";
 import { characterService, ApiException } from "@/api";
 import type { Character } from "@/api";
+import MDEditor from '@uiw/react-md-editor';
 
 const CharacterEdit = () => {
   const { id } = useParams();
@@ -45,7 +45,7 @@ const CharacterEdit = () => {
         setFormData({
           name: characterData.name,
           wiki_url: characterData.wiki_url || '',
-          details: characterData.details ? JSON.stringify(characterData.details, null, 2) : '',
+          details: characterData.details || '',
         });
 
         // Fetch current character image
@@ -84,10 +84,17 @@ const CharacterEdit = () => {
     };
   }, [id, is_authenticated]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleDetailsChange = (value?: string) => {
+    setFormData({
+      ...formData,
+      details: value || '',
     });
   };
 
@@ -108,18 +115,6 @@ const CharacterEdit = () => {
     setSaving(true);
 
     try {
-      // Parse details if provided
-      let parsedDetails = null;
-      if (formData.details.trim()) {
-        try {
-          parsedDetails = JSON.parse(formData.details);
-        } catch {
-          setError('Details must be valid JSON');
-          setSaving(false);
-          return;
-        }
-      }
-
       // Build body with ONLY changed fields
       const body: any = {};
       
@@ -130,8 +125,8 @@ const CharacterEdit = () => {
       if (formData.wiki_url !== (character?.wiki_url || '')) {
         body.wiki_url = formData.wiki_url || null;
       }
-      if (JSON.stringify(parsedDetails) !== JSON.stringify(character?.details)) {
-        body.details = parsedDetails;
+      if (formData.details !== (character?.details || '')) {
+        body.details = formData.details || null;
       }
 
       // Check if anything changed
@@ -241,7 +236,7 @@ const CharacterEdit = () => {
                 name="name"
                 type="text"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 required
                 autoFocus
               />
@@ -256,24 +251,26 @@ const CharacterEdit = () => {
                 type="url"
                 placeholder="https://example.fandom.com/wiki/Character_Name"
                 value={formData.wiki_url}
-                onChange={handleChange}
+                onChange={handleInputChange}
               />
             </div>
 
-            {/* Details */}
+            {/* Details - Markdown Editor */}
             <div className="space-y-2">
-              <Label htmlFor="details">Details (JSON)</Label>
-              <Textarea
-                id="details"
-                name="details"
-                placeholder='{"age": 25, "species": "Human", "occupation": "Detective"}'
-                rows={6}
-                value={formData.details}
-                onChange={handleChange}
-                className="font-mono text-sm"
-              />
+              <Label htmlFor="details">Details (Markdown)</Label>
+              <div data-color-mode="light">
+                <MDEditor
+                  value={formData.details}
+                  onChange={handleDetailsChange}
+                  height={200}
+                  preview="live"
+                  hideToolbar={false}
+                  enableScroll={true}
+                  visibleDragbar={true}
+                />
+              </div>
               <p className="text-sm text-muted-foreground">
-                Optional character details as JSON. Example: {`{"age": 25, "species": "Human"}`}
+                Character details in markdown format. The editor shows live preview as you type.
               </p>
             </div>
 
