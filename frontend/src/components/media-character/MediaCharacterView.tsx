@@ -16,20 +16,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Loading from "@/components/Loading";
-import { mediaCharacterService, ApiException } from "@/api";
+import { mediaCharacterService, characterService, mediaService, ApiException } from "@/api";
 import type { MediaCharacter } from "@/api";
-import { ExternalLink } from "lucide-react";
+import { User, Film, Calendar, Info, ArrowLeft } from "lucide-react";
 
 const MediaCharacterView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { current_user, is_authenticated, is_loading } = useAuth();
   const [mediaCharacter, setMediaCharacter] = useState<MediaCharacter | null>(null);
+  const [characterImageUrl, setCharacterImageUrl] = useState<string | null>(null);
+  const [mediaImageUrl, setMediaImageUrl] = useState<string | null>(null);
+  const [characterImageFailed, setCharacterImageFailed] = useState(false);
+  const [mediaImageFailed, setMediaImageFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
-  const isOwner = current_user?.id === mediaCharacter?.media.created_by.id;
+  const isOwner = current_user?.id === mediaCharacter?.created_by.id;
 
   useEffect(() => {
     const fetchMediaCharacter = async () => {
@@ -54,6 +58,37 @@ const MediaCharacterView = () => {
       fetchMediaCharacter();
     }
   }, [id, is_authenticated]);
+
+  useEffect(() => {
+    const fetchImages = async () => {
+      if (!mediaCharacter) return;
+
+      try {
+        const charBlob = await characterService.getSingleCover(mediaCharacter.character.id);
+        const charUrl = URL.createObjectURL(charBlob);
+        setCharacterImageUrl(charUrl);
+      } catch (err) {
+        setCharacterImageFailed(true);
+      }
+
+      try {
+        const mediaBlob = await mediaService.getSingleCover(mediaCharacter.media.id);
+        const mediaUrl = URL.createObjectURL(mediaBlob);
+        setMediaImageUrl(mediaUrl);
+      } catch (err) {
+        setMediaImageFailed(true);
+      }
+    };
+
+    if (is_authenticated && mediaCharacter) {
+      fetchImages();
+    }
+
+    return () => {
+      if (characterImageUrl) URL.revokeObjectURL(characterImageUrl);
+      if (mediaImageUrl) URL.revokeObjectURL(mediaImageUrl);
+    };
+  }, [mediaCharacter, is_authenticated]);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -110,116 +145,213 @@ const MediaCharacterView = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <CardTitle className="text-3xl">{mediaCharacter.character.name}</CardTitle>
-              <p className="text-muted-foreground mt-1">
-                in <Link to={`/media/${mediaCharacter.media.id}`} className="text-primary hover:underline">{mediaCharacter.media.title}</Link>
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="secondary" className="text-base">
-                  {mediaCharacter.role.name}
-                </Badge>
-              </div>
-            </div>
-            {isOwner && (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/media-character/${id}/edit`}>Edit</Link>
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      disabled={deleting}
-                    >
-                      {deleting ? 'Deleting...' : 'Delete'}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will delete "{mediaCharacter.character.name}" from "{mediaCharacter.media.title}". 
-                        The character itself will not be deleted.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Media Info */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Media Information</h3>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <span className="font-medium">Title:</span>
-                <Link to={`/media/${mediaCharacter.media.id}`} className="text-primary hover:underline">
-                  {mediaCharacter.media.title}
-                </Link>
-              </div>
-              <div className="flex gap-2">
-                <span className="font-medium">Type:</span>
-                <span className="text-muted-foreground">{mediaCharacter.media.type.name}</span>
-              </div>
-              <div className="flex gap-2">
-                <span className="font-medium">Status:</span>
-                <span className="text-muted-foreground">{mediaCharacter.media.status.name}</span>
-              </div>
-              {mediaCharacter.media.release_year && (
-                <div className="flex gap-2">
-                  <span className="font-medium">Release Year:</span>
-                  <span className="text-muted-foreground">{mediaCharacter.media.release_year}</span>
-                </div>
-              )}
-            </div>
-          </div>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => navigate(`/media/${mediaCharacter.media.id}`)}
+        className="mb-4"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to {mediaCharacter.media.title}
+      </Button>
 
-          {/* Creator Info */}
-          <div className="pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              Media created by{' '}
-              <Link 
-                to={`/users/${mediaCharacter.media.created_by.id}`}
-                className="text-primary hover:underline font-medium"
-              >
-                {mediaCharacter.media.created_by.username}
-              </Link>
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Button asChild className="flex-1">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Character Card */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-md flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Character
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Link 
+              to={`/characters/${mediaCharacter.character.id}`}
+              className="block group"
+            >
+              <div className="aspect-[3/4] rounded-md bg-muted mb-4 overflow-hidden">
+                {characterImageUrl ? (
+                  <img
+                    src={characterImageUrl}
+                    alt={mediaCharacter.character.name}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                  />
+                ) : !characterImageFailed ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Loading />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-16 h-16 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <h2 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
+                {mediaCharacter.character.name}
+              </h2>
+            </Link>
+            <Badge variant="secondary" className="text-sm">
+              {mediaCharacter.role.name}
+            </Badge>
+            
+            <Button asChild className="w-full mt-6">
               <Link to={`/characters/${mediaCharacter.character.id}`}>
-                <ExternalLink className="w-4 h-4 mr-2" />
                 View Full Character Profile
               </Link>
             </Button>
-            <Button variant="outline" asChild className="flex-1">
-              <Link to={`/media/${mediaCharacter.media.id}`}>
-                Back to Media
+          </CardContent>
+        </Card>
+
+        {/* Main Content */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Media Info Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <CardTitle className="text-md flex items-center gap-2">
+                  <Film className="w-5 h-5" />
+                  Featured In
+                </CardTitle>
+                {isOwner && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/media-character/${id}/edit`}>Edit</Link>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          disabled={deleting}
+                        >
+                          {deleting ? 'Removing...' : 'Remove'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove Character from Media?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will remove "{mediaCharacter.character.name}" from "{mediaCharacter.media.title}". 
+                            The character itself will not be deleted, only this relationship.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Remove
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Link 
+                to={`/media/${mediaCharacter.media.id}`}
+                className="block group"
+              >
+                <div className="flex gap-4">
+                  <div className="w-24 flex-shrink-0 aspect-[2/3] rounded-md bg-muted overflow-hidden">
+                    {mediaImageUrl ? (
+                      <img
+                        src={mediaImageUrl}
+                        alt={mediaCharacter.media.title}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    ) : !mediaImageFailed ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Loading />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Film className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
+                        {mediaCharacter.media.title}
+                      </h3>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="secondary">{mediaCharacter.media.type.name}</Badge>
+                        <Badge variant="outline">{mediaCharacter.media.status.name}</Badge>
+                      </div>
+                    </div>
+
+                    {mediaCharacter.media.release_year && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <span>{mediaCharacter.media.release_year}</span>
+                      </div>
+                    )}
+
+                    {mediaCharacter.media.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {mediaCharacter.media.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Metadata Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-md flex items-center gap-2">
+                <Info className="w-5 h-5" />
+                Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Character Role</p>
+                  <Badge variant="secondary" className="text-sm">
+                    {mediaCharacter.role.name}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Media Type</p>
+                  <Badge variant="secondary" className="text-sm">
+                    {mediaCharacter.media.type.name}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t space-y-2">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Relationship added by </span>
+                  <Link 
+                    to={`/users/${mediaCharacter.created_by.id}`}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {mediaCharacter.created_by.username}
+                  </Link>
+                </div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Media created by </span>
+                  <Link 
+                    to={`/users/${mediaCharacter.media.created_by.id}`}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {mediaCharacter.media.created_by.username}
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
