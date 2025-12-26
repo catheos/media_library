@@ -8,7 +8,8 @@ exports.up = function(knex) {
     table.integer('media_id').unsigned().notNullable();
     table.integer('character_id').unsigned().notNullable();
     table.integer('role_id').unsigned().notNullable();
-    
+    table.integer('created_by').unsigned().notNullable();
+
     table.unique(['media_id', 'character_id']);
     
     table.foreign('media_id')
@@ -24,6 +25,11 @@ exports.up = function(knex) {
     table.foreign('role_id')
       .references('id')
       .inTable('character_roles')
+      .onDelete('RESTRICT');
+    
+    table.foreign('created_by')
+      .references('id')
+      .inTable('user')
       .onDelete('RESTRICT');
   });
 };

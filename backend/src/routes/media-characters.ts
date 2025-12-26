@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 const router = express.Router();
 import db from "../db";
 import { requireBody } from "../middleware/validateBody";
+import { create } from "domain";
 
 // Define types
 interface MediaCharacterDbRow {
@@ -19,22 +20,51 @@ router.route("/roles")
   // GET roles with optional name and limit filtering
   .get(async(req: Request, res: Response) => {
     try {
-      const { name, limit } = req.query;
-
+      const { search, limit } = req.query;
+      
       // Start building the query
-      let query = db('character_roles').select('*').orderBy('name', 'asc');
+      let query = db('character_roles')
+        .join('user', 'character_roles.created_by', 'user.id')
+        .select(
+          'character_roles.id',
+          'character_roles.name',
+          'character_roles.created_by',
+          'user.username as created_by_username',
+        )
+        .orderBy('character_roles.name', 'asc');
 
-      // Optional name filter for typeahead
-      if (name) {
-        query = query.where('name', 'like', `%${name}%`);
+      // Optional search filter
+      if (search) {
+        query = query.where('character_roles.name', 'like', `%${search}%`);
       }
+
+      // Get total count before limit
+      const [{ count }] = await query.clone().count('* as count');
+      const total = parseInt(count as string);
 
       // Optional limit; default to 20 if not specified
       const maxResults = limit ? parseInt(limit as string, 10) : 20;
       query = query.limit(maxResults);
 
       const character_roles = await query;
-      res.json(character_roles);
+
+      // Format roles with created_by object
+      const formatted_character_roles = character_roles.map((role: any) => {
+        const { created_by, created_by_username, ...role_destructure } = role;
+
+        return {
+          ...role_destructure,
+          created_by: {
+            id: created_by,
+            username: created_by_username
+          }
+        }
+      })
+
+      res.json({
+        roles: formatted_character_roles,
+        total
+      });
 
     } catch (error: any) {
       res.status(500).json({ error: error.message })
@@ -43,6 +73,7 @@ router.route("/roles")
   // POST roles
   .post(async(req: Request, res: Response) => {
     try {
+      const user_id = req.user!.user_id;
       const { name } = req.body;
 
       // Validate name exists
@@ -55,7 +86,7 @@ router.route("/roles")
         return res.status(400).json({ error: 'name must be 3 or more characters!'})
       }
 
-      // Check if user exists
+      // Check if role exists
       const existing_role = await db('character_roles')
         .where({ name })
         .first();
@@ -66,15 +97,33 @@ router.route("/roles")
       }
 
       // Insert new role
-      const [id] = await db('character_roles').insert({
-        name
+      const [role_id] = await db('character_roles').insert({
+        name: name,
+        created_by: user_id
       });
+
+      // Grab new role by id
+      const role = await db('character_roles')
+        .join('user', 'character_roles.created_by', 'user.id')
+        .where('character_roles.id', role_id)
+        .select(
+          'character_roles.id',
+          'character_roles.name',
+          'character_roles.created_by',
+          'user.username as created_by_username'
+        )
+        .first();
+      
+      const { created_by, created_by_username, ...role_destructure } = role;
 
       res.status(201).json({
         message: "Role created successfully!",
         role: {
-          id: id,
-          name: name
+          ...role_destructure,
+          created_by: {
+            id: created_by,
+            username: created_by_username
+          },
         }
       });
 
@@ -90,15 +139,29 @@ router.route("/roles/:id")
       const { id } = req.params;
 
       const role = await db('character_roles')
-        .where({ id: id })
+        .join('user', 'character_roles.created_by', 'user.id')
+        .select(
+          'character_roles.id',
+          'character_roles.name',
+          'character_roles.created_by',
+          'user.username as created_by_username',
+        )
+        .where('character_roles.id', id)
         .first();
-
+      
       if (!role) {
         res.status(404).json({ error: 'role not found' });
         return;
       }
 
-      res.json(role);
+      const { created_by, created_by_username, ...role_destructure } = role;
+      res.json({
+        ...role_destructure,
+        created_by: {
+          id: created_by,
+          username: created_by_username
+        }
+      });
 
     } catch (error: any) {
       res.status(500).json({ error: error.message })
@@ -134,6 +197,140 @@ router.route("/roles/:id")
     }
   })
 
+// ============= MEDIA-CHARACTER BASE ROUTES ================
+router.route("/:id")
+  .get(async(req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      let media_character = await db('media_character')
+        .where('media_character.id', id)
+        .join('media', 'media_character.media_id', 'media.id')
+        .join('media_types', 'media.type_id', 'media_types.id')
+        .join('media_status_types', 'media.status_id', 'media_status_types.id')
+        .join('user as media_creator', 'media.created_by', 'media_creator.id')
+        .join('character', 'media_character.character_id', 'character.id')
+        .join('character_roles', 'media_character.role_id', 'character_roles.id')
+        .join('user as mc_creator', 'media_character.created_by', 'mc_creator.id')
+        .select(
+          'media_character.id',
+          'media_character.media_id',
+          'media_character.character_id',
+          'media_character.role_id',
+          'media.title',
+          'media.type_id',
+          'media_types.name as type_name',
+          'media.release_year',
+          'media.status_id',
+          'media_status_types.name as status_name',
+          'media.description',
+          'media.created_by',
+          'media_creator.username as media_created_by_username',
+          'character.name as character_name',
+          'character_roles.name as role_name',
+          'media_character.created_by as mc_created_by',
+          'mc_creator.username as mc_created_by_username'
+        )
+        .first();
+
+      if (!media_character) {
+        res.status(404).json({ error: 'Media-character relationship not found' });
+        return;
+      }
+
+      // deconstruction
+      const { 
+        media_id,
+        title, 
+        type_id, 
+        type_name,
+        release_year, 
+        status_id, 
+        status_name,
+        description, 
+        created_by, 
+        media_created_by_username, 
+
+        character_id,
+        character_name,
+
+        role_id,
+        role_name,
+
+        mc_created_by,
+        mc_created_by_username,
+        ...media_character_destructure
+      } = media_character;
+
+      res.json({
+        ...media_character_destructure,
+        media: {
+          id: media_id,
+          title,
+          type: {
+            id: type_id,
+            name: type_name
+          },
+          release_year,
+          status: {
+            id: status_id,
+            name: status_name
+          },
+          description,
+          created_by: {
+            id: created_by,
+            username: media_created_by_username
+          }
+        },
+        character: {
+          id: character_id,
+          name: character_name
+        },
+        role: {
+          id: role_id,
+          name: role_name
+        },
+        created_by: {
+          id: mc_created_by,
+          username: mc_created_by_username
+        }
+      });
+
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  })
+  // DELETE remove character from media
+  .delete(async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+      const { id } = req.params;
+
+      // Verify relationship exists
+      const media_character = await db('media_character')
+        .where({ id: parseInt(id) })
+        .first();
+
+      if (!media_character) {
+        res.status(404).json({ error: 'Media-character relationship not found' });
+        return;
+      }
+
+      // user created relationship
+      if (media_character.created_by !== user_id) {
+        res.status(403).json({ error: 'You can only remove characters from media you created' });
+        return;
+      }
+
+      // Delete relationship
+      await db('media_character').where({ id: parseInt(id) }).del();
+
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  })
+
 // ============= MEDIA-CHARACTER LINKING ROUTES =============
 router.route("/media/:media_id/characters")
   // GET all characters for a specific media
@@ -152,6 +349,7 @@ router.route("/media/:media_id/characters")
       const media_characters = await db('media_character')
         .join('character', 'media_character.character_id', 'character.id')
         .join('character_roles', 'media_character.role_id', 'character_roles.id')
+        .join('user', 'media_character.created_by', 'user.id')
         .where({ 'media_character.media_id': parseInt(media_id) })
         .select(
           'media_character.id',
@@ -160,7 +358,9 @@ router.route("/media/:media_id/characters")
           'character.details',
           'character.wiki_url',
           'character_roles.id as role_id',
-          'character_roles.name as role_name'
+          'character_roles.name as role_name',
+          'media_character.created_by',
+          'user.username as created_by_username'
         )
         .orderBy('character.name', 'asc');
 
@@ -176,6 +376,10 @@ router.route("/media/:media_id/characters")
         role: {
           id: mc.role_id,
           name: mc.role_name
+        },
+        created_by: {
+          id: mc.created_by,
+          username: mc.created_by_username
         }
       }));
 
@@ -237,26 +441,104 @@ router.route("/media/:media_id/characters")
       }
 
       // Create the relationship
-      const [id] = await db('media_character').insert({
+      await db('media_character').insert({
         media_id: parseInt(media_id),
         character_id: character_id,
-        role_id: role_id
+        role_id: role_id,
+        created_by: user_id
       });
+
+      // Grab new relationship
+      const media_character = await db('media_character')
+        .where({
+          media_id: parseInt(media_id),
+          character_id: character_id
+        })
+        .join('media', 'media_character.media_id', 'media.id')
+        .join('media_types', 'media.type_id', 'media_types.id')
+        .join('media_status_types', 'media.status_id', 'media_status_types.id')
+        .join('user as media_creator', 'media.created_by', 'media_creator.id')
+        .join('character', 'media_character.character_id', 'character.id')
+        .join('character_roles', 'media_character.role_id', 'character_roles.id')
+        .join('user as mc_creator', 'media_character.created_by', 'mc_creator.id')
+        .select(
+          'media_character.id',
+          'media_character.media_id as media_id_new',
+          'media.title',
+          'media.type_id',
+          'media_types.name as type_name',
+          'media.release_year',
+          'media.status_id',
+          'media_status_types.name as status_name',
+          'media.description',
+          'media.created_by',
+          'media_creator.username as media_created_by_username',
+          'media_character.character_id as character_id_new',
+          'character.name as character_name',
+          'media_character.role_id as role_id_new',
+          'character_roles.name as role_name',
+          'media_character.created_by as mc_created_by',
+          'mc_creator.username as mc_created_by_username'
+        )
+        .first();
+
+      // deconstruction
+      const { 
+        media_id_new,
+        title, 
+        type_id, 
+        type_name,
+        release_year, 
+        status_id, 
+        status_name,
+        description, 
+        created_by, 
+        media_created_by_username, 
+
+        character_id_new,
+        character_name,
+
+        role_id_new,
+        role_name,
+
+        mc_created_by,
+        mc_created_by_username,
+        ...media_character_destructure
+      } = media_character;
 
       res.status(201).json({
         message: 'Character added to media successfully',
         media_character: {
-          id: id,
-          media_id: parseInt(media_id),
+          ...media_character_destructure,
+          media: {
+            id: media_id_new,
+            title,
+            type: {
+              id: type_id,
+              name: type_name
+            },
+            release_year,
+            status: {
+              id: status_id,
+              name: status_name
+            },
+            description,
+            created_by: {
+              id: created_by,
+              username: media_created_by_username
+            }
+          },
           character: {
-            id: character.id,
-            name: character.name,
-            details: character.details ? JSON.parse(character.details) : null,
-            wiki_url: character.wiki_url
+            id: character_id_new,
+            name: character_name
           },
           role: {
-            id: role.id,
-            name: role.name
+            id: role_id_new,
+            name: role_name
+          },
+          created_by: {
+            id: mc_created_by,
+            username: mc_created_by_username
           }
         }
       });
@@ -274,6 +556,7 @@ router.route("/media/:media_id/characters/:id")
       const media_character = await db('media_character')
         .join('character', 'media_character.character_id', 'character.id')
         .join('character_roles', 'media_character.role_id', 'character_roles.id')
+        .join('user', 'media_character.created_by', 'user.id')
         .where({ 
           'media_character.id': parseInt(id),
           'media_character.media_id': parseInt(media_id)
@@ -286,7 +569,9 @@ router.route("/media/:media_id/characters/:id")
           'character.details',
           'character.wiki_url',
           'character_roles.id as role_id',
-          'character_roles.name as role_name'
+          'character_roles.name as role_name',
+          'media_character.created_by',
+          'user.username as created_by_username'
         )
         .first();
 
@@ -307,6 +592,10 @@ router.route("/media/:media_id/characters/:id")
         role: {
           id: media_character.role_id,
           name: media_character.role_name
+        },
+        created_by: {
+          id: media_character.created_by,
+          username: media_character.created_by_username
         }
       });
     } catch (error: any) {
@@ -396,45 +685,6 @@ router.route("/media/:media_id/characters/:id")
           }
         }
       });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  })
-  // DELETE remove character from media
-  .delete(async (req: Request, res: Response) => {
-    try {
-      const user_id = req.user!.user_id;
-      const { media_id, id } = req.params;
-
-      // Verify media exists and user owns it
-      const media = await db('media').where({ id: parseInt(media_id) }).first();
-      if (!media) {
-        res.status(404).json({ error: 'Media not found' });
-        return;
-      }
-
-      if (media.created_by !== user_id) {
-        res.status(403).json({ error: 'You can only remove characters from media you created' });
-        return;
-      }
-
-      // Verify relationship exists
-      const media_character = await db('media_character')
-        .where({ 
-          id: parseInt(id),
-          media_id: parseInt(media_id)
-        })
-        .first();
-
-      if (!media_character) {
-        res.status(404).json({ error: 'Media-character relationship not found' });
-        return;
-      }
-
-      // Delete relationship
-      await db('media_character').where({ id: parseInt(id) }).del();
-
-      res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -10,13 +10,13 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Loader2 } from "lucide-react";
 import Loading from "@/components/Loading";
 import { characterService, ApiException } from "@/api";
-import type { CharacterWithMedia } from "@/api";
+import type { Character } from "@/api";
 
 const CharacterEdit = () => {
   const { id } = useParams();
   const { current_user, is_authenticated, is_loading } = useAuth();
   const navigate = useNavigate();
-  const [character, setCharacter] = useState<CharacterWithMedia | null>(null);
+  const [character, setCharacter] = useState<Character | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     wiki_url: '',

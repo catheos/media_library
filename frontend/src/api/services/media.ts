@@ -102,7 +102,10 @@ export const mediaService = {
   },
 
   // Update media by id
-  updateMedia: async (id: number, data: UpdateMediaRequest): Promise<UpdateMediaResponse> => {
+  updateMedia: async (
+    id: number,
+    data: UpdateMediaRequest
+  ): Promise<UpdateMediaResponse> => {
     const response = await api(`/api/media/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

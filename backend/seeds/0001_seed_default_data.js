@@ -22,14 +22,6 @@ exports.seed = async function(knex) {
     {name: 'upcoming'}
   ])
 
-  await knex('character_roles').del()
-  await knex('character_roles').insert([
-    {name: 'protagonist'},
-    {name: 'antagonist'},
-    {name: 'supporting'},
-    {name: 'cameo'}
-  ])
-
   await knex('user_media_status_types').del()
   await knex('user_media_status_types').insert([
     {name: 'planning'},

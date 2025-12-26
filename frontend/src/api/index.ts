@@ -2,6 +2,7 @@ export { api, ApiException } from './client';
 export { userService } from './services/users';
 export { mediaService } from './services/media';
 export { characterService } from './services/characters';
+export { mediaCharacterService } from './services/media-character';
 
 export type {
   User,
@@ -25,7 +26,6 @@ export type {
 export type {
   Character,
   CharacterListResponse,
-  CharacterWithMedia,
   CharacterMedia,
   CharacterMediaListResponse,
   CreateCharacterRequest,
@@ -33,3 +33,12 @@ export type {
   UpdateCharacterRequest,
   UpdateCharacterResponse,
 } from './services/characters';
+
+export type {
+  MediaCharacterRole,
+  MediaCharacter,
+  MediaCharactersResponse,
+  CreateMediaCharacterResponse,
+  UpdateMediaCharacterResponse,
+  DeleteMediaCharacterResponse,
+} from './services/media-character'

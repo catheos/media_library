@@ -39,25 +39,37 @@ router.route("/")
       // Get paginated characters with media count for context
       const characters = await query
         .select(
-          'character.*',
+          'character.id',
+          'character.name',
+          'character.details',
+          'character.wiki_url',
+          'character.created_at',
+          'character.updated_at',
+          'character.created_by',
+          'user.username as created_by_username',
           db.raw('COUNT(media_character.id) as media_count')
         )
         .leftJoin('media_character', 'character.id', 'media_character.character_id')
+        .join('user', 'character.created_by', 'user.id')
         .groupBy('character.id')
         .limit(page_size)
         .offset(offset)
         .orderBy('name', 'asc');
 
       // Parse JSON details field
-      const formatted_characters = characters.map((char: any) => ({
-        id: char.id,
-        name: char.name,
-        details: char.details ? JSON.parse(char.details) : null,
-        wiki_url: char.wiki_url,
-        created_at: char.created_at,
-        updated_at: char.updated_at,
-        media_count: parseInt(char.media_count)
-      }));
+      const formatted_characters = characters.map((char: any) => {
+        const { created_by, created_by_username, ...character_destructure } = char;
+        
+        return {
+          ...character_destructure,
+          details: char.details ? JSON.parse(char.details) : null,
+          created_by: {
+            id: created_by,
+            username: created_by_username
+          },
+          media_count: parseInt(char.media_count)
+        }
+      });
 
       res.json({
         characters: formatted_characters,

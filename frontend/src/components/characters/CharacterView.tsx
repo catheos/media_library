@@ -18,13 +18,13 @@ import {
 import { ExternalLink } from "lucide-react";
 import Loading from "@/components/Loading";
 import { characterService, ApiException } from "@/api";
-import type { CharacterWithMedia } from "@/api";
+import type { Character } from "@/api";
 
 const CharacterView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { current_user, is_authenticated, is_loading } = useAuth();
-  const [character, setCharacter] = useState<CharacterWithMedia | null>(null);
+  const [character, setCharacter] = useState<Character | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);

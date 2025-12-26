@@ -16,17 +16,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Loading from "@/components/Loading";
-import { mediaService, ApiException } from "@/api";
-import type { Media } from "@/api";
+import { mediaService, mediaCharacterService, ApiException } from "@/api";
+import type { Media, MediaCharacter } from "@/api";
+import { User } from "lucide-react";
 
 const MediaView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { current_user, is_authenticated, is_loading } = useAuth();
   const [media, setMedia] = useState<Media | null>(null);
+  const [characters, setCharacters] = useState<MediaCharacter[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [charactersLoading, setCharactersLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -57,6 +60,25 @@ const MediaView = () => {
   }, [id, is_authenticated]);
 
   useEffect(() => {
+    const fetchCharacters = async () => {
+      setCharactersLoading(true);
+      
+      try {
+        const data = await mediaCharacterService.getAll(parseInt(id!));
+        setCharacters(data.characters);
+      } catch (err) {
+        console.error('Failed to load characters:', err);
+      } finally {
+        setCharactersLoading(false);
+      }
+    };
+
+    if (is_authenticated && id) {
+      fetchCharacters();
+    }
+  }, [id, is_authenticated]);
+
+  useEffect(() => {
     const fetchImage = async () => {
       if (!id) return;
 
@@ -73,7 +95,6 @@ const MediaView = () => {
       fetchImage();
     }
 
-    // Cleanup blob URL
     return () => {
       if (imageUrl) {
         URL.revokeObjectURL(imageUrl);
@@ -86,7 +107,6 @@ const MediaView = () => {
     
     try {
       await mediaService.deleteMedia(parseInt(id!));
-      console.log("test")
       navigate('/media');
     } catch (err) {
       if (err instanceof ApiException) {
@@ -98,22 +118,18 @@ const MediaView = () => {
     }
   };
 
-  // Show loading while auth is initializing
   if (is_loading) {
     return <Loading fullScreen />;
   }
 
-  // Not authenticated
   if (!is_authenticated) {
     return <Navigate to="/users/login" replace />;
   }
 
-  // Loading state
   if (loading) {
     return <Loading fullScreen />;
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -132,7 +148,6 @@ const MediaView = () => {
     );
   }
 
-  // No media data
   if (!media) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -141,13 +156,11 @@ const MediaView = () => {
     );
   }
 
-  // Render media
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Cover Image */}
             <div className="w-full md:w-64 flex-shrink-0 aspect-[2/3]">
               {imageUrl ? (
                 <img
@@ -166,7 +179,6 @@ const MediaView = () => {
               )}
             </div>
 
-            {/* Media Info */}
             <div className="flex-1 space-y-4">
               <div>
                 <div className="flex items-start justify-between gap-4">
@@ -242,6 +254,58 @@ const MediaView = () => {
             </div>
           </div>
         </CardHeader>
+      </Card>
+
+      {/* Characters Section */}
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Characters</CardTitle>
+            {isOwner && (
+              <Button size="sm" asChild>
+                <Link to={`/media-character/upload?media=${id}`}>Add Character</Link>
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {charactersLoading ? (
+            <div className="flex justify-center py-8">
+              <Loading />
+            </div>
+          ) : characters.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No characters added yet
+              {isOwner && '. Click "Add Character" to get started.'}
+            </p>
+          ) : (
+            <div className="relative">
+              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                {characters.map((mc) => (
+                  <Link
+                    key={mc.id}
+                    to={`/media-character/${mc.id}`}
+                    className="flex-shrink-0 group"
+                  >
+                    <div className="w-32 space-y-2">
+                      <div className="w-32 h-32 rounded-lg bg-muted flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
+                        <User className="w-12 h-12 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
+                          {mc.character.name}
+                        </p>
+                        <Badge variant="secondary" className="text-xs">
+                          {mc.role.name}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

@@ -2,7 +2,6 @@ import { Navigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import Loading from "@/components/Loading";
 import { characterService, ApiException } from "@/api";
 import type { CharacterListResponse } from "@/api";

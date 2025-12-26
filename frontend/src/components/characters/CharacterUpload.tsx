@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
+import { useNavigate, Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { characterService, ApiException } from '@/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import Loading from '@/components/Loading';
 const CharacterUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const media_id = searchParams.get('media_id');
   const [formData, setFormData] = useState({
     name: '',
     wiki_url: '',
@@ -78,7 +80,11 @@ const CharacterUpload = () => {
       setSuccess('Character created successfully!');
       
       setTimeout(() => {
-        navigate(`/characters/${response.character.id}`);
+        if (media_id) {
+          navigate(`/media-character/upload?media=${media_id}&character_id=${response.character.id}`);
+        } else {
+          navigate(`/characters/${response.character.id}`);
+        }
       }, 2000);
     } catch (err) {
       if (err instanceof ApiException) {
