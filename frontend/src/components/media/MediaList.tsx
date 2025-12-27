@@ -3,10 +3,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ImageContainer from "@/components/common/ImageContainer";
+import ErrorCard from "@/components/common/ErrorCard";
 import { mediaService, ApiException } from "@/api";
 import type { PaginatedResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { Film } from "lucide-react";
 
 import {
   Pagination,
@@ -20,7 +23,7 @@ import {
 // Component to handle individual media card with image fetching
 const MediaCard = ({ media }: { media: any }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageFail, setImageFail] = useState<boolean>(false);
+  const [imageFailed, setImageFailed] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchImage = async () => {
@@ -29,7 +32,7 @@ const MediaCard = ({ media }: { media: any }) => {
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
       } catch (err) {
-        setImageFail(true)
+        setImageFailed(true);
       }
     };
 
@@ -43,27 +46,18 @@ const MediaCard = ({ media }: { media: any }) => {
   }, [media.id]);
 
   return (
-    <Link to={`/media/${media.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
-        <div className="aspect-[2/3] bg-muted relative">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={media.title}
-              className="w-full h-full object-cover"
-            />
-          ) : !imageFail ? (
-            <div className="w-full h-full flex items-center justify-center">
-              < Loading />
-            </div>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              Failed
-            </div>
-          )}
-        </div>
-        <CardContent className="p-4 space-y-2">
-          <h3 className="font-semibold truncate">{media.title}</h3>
+    <Link to={`/media/${media.id}`} className="block group">
+      <Card className="p-2 overflow-hidden transition-transform h-full group-hover:scale-101">
+        <ImageContainer
+          imageUrl={imageUrl}
+          imageFailed={imageFailed}
+          alt={media.title}
+          FallbackIcon={Film}
+          aspectRatio="portrait"
+          iconSize="md"
+        />
+        <CardContent className="space-y-1">
+          <h3 className="mt-1 font-semibold truncate">{media.title}</h3>
           {media.release_year && (
             <p className="text-sm text-muted-foreground">
               {media.release_year}
@@ -120,44 +114,25 @@ const MediaList = () => {
     }
   }, [page, is_authenticated]);
 
-  // Show loading while auth is initializing
   if (is_loading) {
     return <Loading fullScreen />;
   }
 
-  // Not authenticated
   if (!is_authenticated) {
     return <Navigate to="/users/login" replace />;
   }
 
-  // Loading state
   if (loading) {
     return <Loading fullScreen />;
   }
 
-  // Error state
   if (error) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <p className="text-red-600 mb-4">{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
-            >
-              Try Again
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorCard message={error} onRetry={() => window.location.reload()} />;
   }
 
-  // No media data
   if (!data || data.media.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto p-4 max-w-4xl">
         <div className="flex items-center justify-center py-8">
           <p>No media found</p>
         </div>
@@ -166,10 +141,10 @@ const MediaList = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="space-y-8">
+    <div className="container mx-auto p-4 max-w-4xl">
+      <div className="space-y-4">
         {/* Media grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {data.media.map((media) => (
             <MediaCard key={media.id} media={media} />
           ))}

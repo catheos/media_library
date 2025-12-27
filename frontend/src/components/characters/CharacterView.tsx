@@ -15,10 +15,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ExternalLink, User } from "lucide-react";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ImageContainer from "@/components/common/ImageContainer";
+import ErrorCard from "@/components/common/ErrorCard";
 import { characterService, ApiException } from "@/api";
 import type { Character } from "@/api";
 import MDEditor from '@uiw/react-md-editor';
+import BackButton from "../common/BackButton";
 
 const CharacterView = () => {
   const { id } = useParams();
@@ -110,146 +113,133 @@ const CharacterView = () => {
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorCard message={error} onRetry={() => window.location.reload()} />;
   }
 
   if (!character) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center">
         <p>Character not found</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Character Image */}
-        <Card className="md:col-span-1 md:self-start">
-          <CardContent className="p-6">
-            <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={character.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : imageFailed ? (
-                <User className="w-20 h-20 text-muted-foreground" />
-              ) : (
-                <Loading />
-              )}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="container mx-auto p-4 max-w-4xl">
+      <div className="space-y-4">
+        <BackButton
+          to="/characters"
+          label="Back to Characters"
+        />
 
-        {/* Character Info */}
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between gap-4">
-                <CardTitle className="text-3xl">{character.name}</CardTitle>
-                {isOwner && (
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/characters/${id}/edit`}>Edit</Link>
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          disabled={deleting}
-                        >
-                          {deleting ? 'Deleting...' : 'Delete'}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete "{character.name}". This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {character.wiki_url && (
-                <Button variant="outline" size="sm" asChild>
-                  <a 
-                    href={character.wiki_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2"
-                  >
-                    View Wiki
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
-              )}
-
-              {character.created_by && (
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Added by{' '}
-                    <Link 
-                      to={`/users/${character.created_by.id}`}
-                      className="text-primary hover:underline font-medium"
-                    >
-                      {character.created_by.username}
-                    </Link>
-                  </p>
-                </div>
-              )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Character Image */}
+          <Card className="md:col-span-1 md:self-start">
+            <CardContent className="p-2">
+              <ImageContainer
+                imageUrl={imageUrl}
+                imageFailed={imageFailed}
+                alt={character.name}
+                FallbackIcon={User}
+                aspectRatio="portrait"
+              />
             </CardContent>
           </Card>
 
-          {/* Details Section - Markdown Display */}
-          {character.details && character.details.trim() && (
+          {/* Character Info */}
+          <div className="md:col-span-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div data-color-mode="light">
-                  <MDEditor.Markdown 
-                    source={character.details} 
-                    style={{ 
-                      padding: '1rem',
-                      backgroundColor: 'transparent'
-                    }}
-                  />
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-3xl">{character.name}</CardTitle>
+                  {isOwner && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/characters/${id}/edit`}>Edit</Link>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            disabled={deleting}
+                          >
+                            {deleting ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{character.name}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleDelete}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {character.wiki_url && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a 
+                      href={character.wiki_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2"
+                    >
+                      View Wiki
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                )}
+
+                {character.created_by && (
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Added by{' '}
+                      <Link 
+                        to={`/users/${character.created_by.id}`}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        {character.created_by.username}
+                      </Link>
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Details Section - Markdown Display */}
+            {character.details && character.details.trim() && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div data-color-mode="light">
+                    <MDEditor.Markdown 
+                      source={character.details} 
+                      style={{ 
+                        padding: '1rem',
+                        backgroundColor: 'transparent'
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
     </div>

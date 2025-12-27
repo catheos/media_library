@@ -14,7 +14,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ErrorCard from "@/components/common/ErrorCard";
 import { userService, ApiException } from "@/api";
 import type { User } from "@/api";
 
@@ -72,34 +73,26 @@ const UserView = () => {
   // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <ErrorCard 
+        message={error}
+        onRetry={() => window.location.reload()}
+        retryText="Try Again"
+      />
     );
   }
 
   // No user data
   if (!user) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <p>User not found</p>
-      </div>
+      <ErrorCard 
+        message="User not found"
+      />
     );
   }
 
   // Render profile
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-4 max-w-4xl">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>

@@ -2,10 +2,13 @@ import { Navigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ErrorCard from "@/components/common/ErrorCard";
+import ImageContainer from "@/components/common/ImageContainer";
 import { characterService, ApiException } from "@/api";
 import type { CharacterListResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { User } from "lucide-react";
 
 import {
   Pagination,
@@ -19,7 +22,7 @@ import {
 // Component to handle individual character card with image fetching
 const CharacterCard = ({ character }: { character: any }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageFail, setImageFail] = useState<boolean>(false);
+  const [imageFailed, setImageFailed] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchImage = async () => {
@@ -28,7 +31,7 @@ const CharacterCard = ({ character }: { character: any }) => {
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
       } catch (err) {
-        setImageFail(true);
+        setImageFailed(true);
       }
     };
 
@@ -42,26 +45,17 @@ const CharacterCard = ({ character }: { character: any }) => {
   }, [character.id]);
 
   return (
-    <Link to={`/characters/${character.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
-        <div className="aspect-[2/3] bg-muted relative">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={character.name}
-              className="w-full h-full object-cover"
-            />
-          ) : !imageFail ? (
-            <div className="w-full h-full flex items-center justify-center">
-              <Loading />
-            </div>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              No Image
-            </div>
-          )}
-        </div>
-        <CardContent className="p-4 space-y-2">
+    <Link to={`/characters/${character.id}`} className="block group">
+      <Card className="p-2 overflow-hidden transition-transform h-full group-hover:scale-105">
+        <ImageContainer
+          imageUrl={imageUrl}
+          imageFailed={imageFailed}
+          alt={character.name}
+          FallbackIcon={User}
+          aspectRatio="portrait"
+          iconSize="md"
+        />
+        <CardContent className="p-2 space-y-1">
           <h3 className="font-semibold truncate">{character.name}</h3>
           {character.media_count !== undefined && (
             <p className="text-sm text-muted-foreground">
@@ -111,44 +105,25 @@ const CharacterList = () => {
     }
   }, [page, is_authenticated]);
 
-  // Show loading while auth is initializing
   if (is_loading) {
     return <Loading fullScreen />;
   }
 
-  // Not authenticated
   if (!is_authenticated) {
     return <Navigate to="/users/login" replace />;
   }
 
-  // Loading state
   if (loading) {
     return <Loading fullScreen />;
   }
 
-  // Error state
   if (error) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <p className="text-red-600 mb-4">{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
-            >
-              Try Again
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorCard message={error} onRetry={() => window.location.reload()} />;
   }
 
-  // No characters data
   if (!data || data.characters.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto p-4 max-w-4xl">
         <div className="flex items-center justify-center py-8">
           <p>No characters found</p>
         </div>
@@ -157,10 +132,10 @@ const CharacterList = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="space-y-8">
+    <div className="container mx-auto p-4 max-w-4xl">
+      <div className="space-y-4">
         {/* Characters grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {data.characters.map((character) => (
             <CharacterCard key={character.id} character={character} />
           ))}

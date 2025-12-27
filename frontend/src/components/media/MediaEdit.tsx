@@ -9,9 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
 import { Loader2 } from "lucide-react";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ErrorCard from "@/components/common/ErrorCard";
+import FormAlerts from "@/components/common/FormAlerts";
 import { mediaService, ApiException } from "@/api";
 import type { Media, MediaType, MediaStatus } from "@/api";
+import BackButton from "../common/BackButton";
 
 const MediaEdit = () => {
   const { id } = useParams();
@@ -61,16 +64,14 @@ const MediaEdit = () => {
           description: mediaData.description || '',
         });
 
-        // Fetch current cover image
         try {
           const blob = await mediaService.getSingleCover(parseInt(id!));
           const url = URL.createObjectURL(blob);
           setCurrentImageUrl(url);
           
-          // Create a File object from the blob to show in dropzone
           const file = new File([blob], `${mediaData.id}.webp`, { type: 'image/webp' });
           setImage([file]);
-          setOriginalImage([file]); // Track original
+          setOriginalImage([file]);
         } catch (err) {
           console.error('Failed to load current cover');
         }
@@ -89,7 +90,6 @@ const MediaEdit = () => {
       fetchData();
     }
 
-    // Cleanup
     return () => {
       if (currentImageUrl) {
         URL.revokeObjectURL(currentImageUrl);
@@ -128,10 +128,8 @@ const MediaEdit = () => {
     setSaving(true);
 
     try {
-      // Build body with ONLY changed fields
       const body: any = {};
       
-      // Compare formData to original media data
       if (formData.title !== media?.title) {
         body.title = formData.title;
       }
@@ -148,28 +146,25 @@ const MediaEdit = () => {
         body.description = formData.description || null;
       }
 
-      // Check if anything changed
       const hasDataChanges = Object.keys(body).length > 0;
       const hasImageChange = image && image[0] && image[0] !== originalImage?.[0];
 
       if (!hasDataChanges && !hasImageChange) {
         setError('No changes to save');
+        setSaving(false);
         return;
       }
 
-      // Update media data if changed
       if (hasDataChanges) {
         await mediaService.updateMedia(parseInt(id!), body);
       }
 
-      // Update cover image if changed
       if (hasImageChange) {
         await mediaService.updateCover(parseInt(id!), image[0]);
       }
 
       setSuccess('Media updated successfully!');
       
-      // Redirect after 2 seconds
       setTimeout(() => {
         navigate(`/media/${id}`);
       }, 2000);
@@ -184,240 +179,218 @@ const MediaEdit = () => {
     }
   };
 
-  // Show loading while auth is initializing
   if (is_loading) {
     return <Loading fullScreen />;
   }
 
-  // Not authenticated
   if (!is_authenticated) {
     return <Navigate to="/users/login" replace />;
   }
 
-  // Loading media data
   if (loading) {
     return <Loading fullScreen />;
   }
 
-  // Not owner
   if (!isOwner) {
     return <Navigate to={`/media/${id}`} replace />;
   }
 
-  // Error state
   if (error && !media) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorCard message={error} onRetry={() => window.location.reload()} />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl">Edit Media</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Update media information
-          </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-                {error}
+    <div className="container mx-auto p-4 max-w-4xl">
+      <div className="space-y-4">
+        <BackButton
+          to={`/media/${id}`}
+          label="Back to Media View"
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl">Edit Media</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Update media information
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <FormAlerts error={error} success={success} />
+
+              {/* Title */}
+              <div className="space-y-2">
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  name="title"
+                  type="text"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                  autoFocus
+                />
               </div>
-            )}
 
-            {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded">
-                {success}
+              {/* Type */}
+              <div className="space-y-2">
+                <Label htmlFor="type_id">Type *</Label>
+                <Select
+                  value={formData.type_id}
+                  onValueChange={(value: string) => handleSelectChange('type_id', value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select media type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mediaTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id.toString()}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
 
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                name="title"
-                type="text"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                autoFocus
-              />
-            </div>
+              {/* Release Year */}
+              <div className="space-y-2">
+                <Label htmlFor="release_year">Release Year</Label>
+                <Input
+                  id="release_year"
+                  name="release_year"
+                  type="number"
+                  placeholder="2024"
+                  min="1800"
+                  max="2100"
+                  value={formData.release_year}
+                  onChange={handleChange}
+                />
+              </div>
 
-            {/* Type */}
-            <div className="space-y-2">
-              <Label htmlFor="type_id">Type *</Label>
-              <Select
-                value={formData.type_id}
-                onValueChange={(value: string) => handleSelectChange('type_id', value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select media type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mediaTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id.toString()}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Status */}
+              <div className="space-y-2">
+                <Label htmlFor="status_id">Status *</Label>
+                <Select
+                  value={formData.status_id}
+                  onValueChange={(value: string) => handleSelectChange('status_id', value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusTypes.map((status) => (
+                      <SelectItem key={status.id} value={status.id.toString()}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Release Year */}
-            <div className="space-y-2">
-              <Label htmlFor="release_year">Release Year</Label>
-              <Input
-                id="release_year"
-                name="release_year"
-                type="number"
-                placeholder="2024"
-                min="1800"
-                max="2100"
-                value={formData.release_year}
-                onChange={handleChange}
-              />
-            </div>
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  placeholder="Enter a description (optional)"
+                  rows={4}
+                  value={formData.description}
+                  onChange={handleChange}
+                />
+              </div>
 
-            {/* Status */}
-            <div className="space-y-2">
-              <Label htmlFor="status_id">Status *</Label>
-              <Select
-                value={formData.status_id}
-                onValueChange={(value: string) => handleSelectChange('status_id', value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusTypes.map((status) => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
-                      {status.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Cover Image Update */}
+              <div className="space-y-2">
+                <Label>Cover Image</Label>
+                <Dropzone
+                  accept={{
+                    'image/jpeg': ['.jpg', '.jpeg'],
+                    'image/png': ['.png'],
+                    'image/webp': ['.webp']
+                  }}
+                  onDrop={handleImageDrop}
+                  onError={handleImageError}
+                  src={image}
+                  maxSize={5 * 1024 * 1024}
+                >
+                  <DropzoneEmptyState />
+                  <DropzoneContent />
+                </Dropzone>
+                {image && image[0] && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPreview(true)}
+                      className="w-full"
+                    >
+                      Preview Image
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setImage(undefined)}
+                      className="w-full"
+                    >
+                      Clear Image
+                    </Button>
+                  </div>
+                )}
+                {!image && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Upload a new image to replace the current cover
+                  </p>
+                )}
+              </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Enter a description (optional)"
-                rows={4}
-                value={formData.description}
-                onChange={handleChange}
-              />
-            </div>
-
-            {/* Cover Image Update */}
-            <div className="space-y-2">
-              <Label>Cover Image</Label>
-              <Dropzone
-                accept={{
-                  'image/jpeg': ['.jpg', '.jpeg'],
-                  'image/png': ['.png'],
-                  'image/webp': ['.webp']
-                }}
-                onDrop={handleImageDrop}
-                onError={handleImageError}
-                src={image}
-                maxSize={5 * 1024 * 1024} // 5MB
-              >
-                <DropzoneEmptyState />
-                <DropzoneContent />
-              </Dropzone>
-              {image && image[0] && (
-                <div className="flex flex-col gap-2 mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPreview(true)}
-                    className="w-full"
-                  >
-                    Preview Image
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setImage(undefined)}
-                    className="w-full"
-                  >
-                    Clear Image
-                  </Button>
+              {/* Image Preview Modal */}
+              {showPreview && image && image[0] && (
+                <div 
+                  className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+                  onClick={() => setShowPreview(false)}
+                >
+                  <div className="relative max-w-4xl max-h-[90vh]">
+                    <img
+                      src={URL.createObjectURL(image[0])}
+                      alt="Preview"
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowPreview(false)}
+                      className="absolute top-4 right-4"
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               )}
-              {!image && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Upload a new image to replace the current cover
-                </p>
-              )}
-            </div>
 
-            {/* Image Preview Modal */}
-            {showPreview && image && image[0] && (
-              <div 
-                className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-                onClick={() => setShowPreview(false)}
-              >
-                <div className="relative max-w-4xl max-h-[90vh]">
-                  <img
-                    src={URL.createObjectURL(image[0])}
-                    alt="Preview"
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                  />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowPreview(false)}
-                    className="absolute top-4 right-4"
-                  >
-                    Close
-                  </Button>
-                </div>
+              {/* Buttons */}
+              <div className="flex gap-4 pt-2">
+                <Button type="submit" disabled={saving} className="flex-1">
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate(`/media/${id}`)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
               </div>
-            )}
-
-            {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={saving} className="flex-1">
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => navigate(`/media/${id}`)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

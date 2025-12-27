@@ -15,10 +15,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ImageContainer from "@/components/common/ImageContainer";
+import ErrorCard from "@/components/common/ErrorCard";
 import { mediaService, mediaCharacterService, characterService, ApiException } from "@/api";
 import type { Media, MediaCharacter } from "@/api";
-import { User } from "lucide-react";
+import { User, Film } from "lucide-react";
+import BackButton from "../common/BackButton";
 
 interface CharacterWithImage extends MediaCharacter {
   imageUrl?: string;
@@ -158,56 +161,43 @@ const MediaView = () => {
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ErrorCard message={error} onRetry={() => window.location.reload()} />;
   }
 
   if (!media) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center">
         <p>Media not found</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-full md:w-64 flex-shrink-0 aspect-[2/3]">
-              {imageUrl ? (
-                <img
-                  src={`${imageUrl}`}
-                  alt={media.title}
-                  className="w-full rounded-lg object-cover aspect-[2/3]"
-                />
-              ) : !imageFailed ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Loading />
-                </div>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  Failed
-                </div>
-              )}
-            </div>
+    <div className="mx-auto p-4 max-w-4xl">
+      <div className="space-y-4">
+        <BackButton
+          to="/media"
+          label="Back to Media"
+        />
 
-            <div className="flex-1 space-y-4">
-              <div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Media Image */}
+          <Card className="md:col-span-1 md:self-start">
+            <CardContent className="p-2">
+              <ImageContainer
+                imageUrl={imageUrl}
+                imageFailed={imageFailed}
+                alt={media.title}
+                FallbackIcon={Film}
+                aspectRatio="portrait"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Media Info */}
+          <div className="md:col-span-2 space-y-4">
+            <Card>
+              <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                   <CardTitle className="text-3xl">{media.title}</CardTitle>
                   {isOwner && (
@@ -246,106 +236,106 @@ const MediaView = () => {
                     </div>
                   )}
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
                 {media.release_year && (
-                  <p className="text-muted-foreground text-lg mt-1">
-                    {media.release_year}
-                  </p>
+                  <div>
+                    <p className="text-muted-foreground text-lg">
+                      {media.release_year}
+                    </p>
+                  </div>
                 )}
-              </div>
 
-              <div className="flex gap-2">
-                <Badge variant="secondary">{media.type.name}</Badge>
-                <Badge variant="outline">{media.status.name}</Badge>
-              </div>
+                <div className="flex gap-2">
+                  <Badge variant="secondary">{media.type.name}</Badge>
+                  <Badge variant="outline">{media.status.name}</Badge>
+                </div>
 
-              {media.description && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Description</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {media.description}
+                {media.description && (
+                  <div>
+                    <h3 className="text-lg font-semibold">Description</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {media.description}
+                    </p>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Added by{' '}
+                    <Link 
+                      to={`/users/${media.created_by.id}`}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {media.created_by.username}
+                    </Link>
                   </p>
                 </div>
-              )}
+              </CardContent>
+            </Card>
 
-              <div className="pt-4 border-t">
-                <p className="text-sm text-muted-foreground">
-                  Added by{' '}
-                  <Link 
-                    to={`/users/${media.created_by.id}`}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    {media.created_by.username}
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Characters Section */}
-      <Card className="mt-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Characters</CardTitle>
-            {isOwner && (
-              <Button size="sm" asChild>
-                <Link to={`/media-character/upload?media=${id}`}>Add Character</Link>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {charactersLoading ? (
-            <div className="flex justify-center py-8">
-              <Loading />
-            </div>
-          ) : characters.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No characters added yet
-              {isOwner && '. Click "Add Character" to get started.'}
-            </p>
-          ) : (
-            <div className="relative">
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                {characters.map((mc) => (
-                  <Link
-                    key={mc.id}
-                    to={`/media-character/${mc.id}`}
-                    className="flex-shrink-0 group block"
-                  >
-                    <div className="w-32 p-3 rounded-lg bg-muted/50 transition-transform group-hover:scale-105">
-                      <div className="space-y-2">
-                        <div className="aspect-[3/4] rounded-md bg-muted flex items-center justify-center overflow-hidden">
-                          {mc.imageUrl ? (
-                            <img
-                              src={mc.imageUrl}
-                              alt={mc.character.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : mc.imageFailed ? (
-                            <User className="w-10 h-10 text-muted-foreground" />
-                          ) : (
-                            <Loading />
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium text-sm truncate" title={mc.character.name}>
-                            {mc.character.name}
-                          </p>
-                          <Badge variant="secondary" className="text-xs">
-                            {mc.role.name}
-                          </Badge>
-                        </div>
-                      </div>
+            {/* Characters Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Characters</CardTitle>
+                  {isOwner && (
+                    <Button size="sm" asChild>
+                      <Link to={`/media-character/upload?media=${id}`}>Add Character</Link>
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {charactersLoading ? (
+                  <div className="flex justify-center py-2">
+                    <Loading />
+                  </div>
+                ) : characters.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-2">
+                    No characters added yet
+                    {isOwner && '. Click "Add Character" to get started.'}
+                  </p>
+                ) : (
+                  <div className="relative">
+                    <div className="flex gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                      {characters.map((mc) => (
+                        <Link
+                          key={mc.id}
+                          to={`/media-character/${mc.id}`}
+                          className="flex-shrink-0 group block"
+                        >
+                          <div className="w-32 rounded-lg bg-muted/50 p-2 transition-transform group-hover:scale-105">
+                            <div className="space-y-2">
+                              <ImageContainer
+                                imageUrl={mc.imageUrl ?? null}
+                                imageFailed={mc.imageFailed ?? false}
+                                alt={mc.character.name}
+                                FallbackIcon={User}
+                                aspectRatio="character"
+                                className="rounded-md"
+                                iconSize="md"
+                              />
+                              <div>
+                                <p className="font-medium text-sm truncate" title={mc.character.name}>
+                                  {mc.character.name}
+                                </p>
+                                <Badge variant="secondary" className="text-xs">
+                                  {mc.role.name}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
 import { mediaCharacterService, ApiException } from "@/api";
 import type { MediaCharacterRole } from "@/api";
 
@@ -83,7 +83,7 @@ const MediaCharacterRoleView = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-red-600">Error</CardTitle>
@@ -101,14 +101,14 @@ const MediaCharacterRoleView = () => {
 
   if (!role) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center">
         <p>Role not found</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="container mx-auto px-4 max-w-4xl">
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4">

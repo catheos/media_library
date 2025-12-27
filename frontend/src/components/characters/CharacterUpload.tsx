@@ -6,10 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
 import { Loader2 } from 'lucide-react';
-import Loading from '@/components/Loading';
+import Loading from '@/components/common/Loading';
+import ImageUploadSection from '@/components/common/ImageUploadSection';
 import MDEditor from '@uiw/react-md-editor';
+import FormAlerts from '../common/FormAlerts';
+import BackButton from '../common/BackButton';
 
 const CharacterUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -22,7 +24,6 @@ const CharacterUpload = () => {
     details: '',
   });
   const [image, setImage] = useState<File[] | undefined>();
-  const [showPreview, setShowPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -101,9 +102,14 @@ const CharacterUpload = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto p-4 max-w-4xl">
+      <BackButton
+        to="/characters"
+        label="Back to Characters"
+      />
+
       {/* Navigation between upload types */}
-      <div className="flex gap-2 pt-4">
+      <div className="flex gap-2">
         <Button 
           variant="outline" 
           asChild
@@ -119,163 +125,101 @@ const CharacterUpload = () => {
           Character
         </Button>
       </div>
-      <Card className="rounded-tl-none rounded-tr-none">
-        <CardHeader>
-          <CardTitle className="text-3xl">Create Character</CardTitle>
-          <CardDescription>
-            Add a new character to the database
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-                {error}
-              </div>
-            )}
 
-            {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded">
-                {success}
-              </div>
-            )}
+      <div className="space-y-4">
+        <Card className="rounded-tl-none rounded-tr-none">
+          <CardHeader>
+            <CardTitle className="text-3xl">Create Character</CardTitle>
+            <CardDescription>
+              Add a new character to the database
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <FormAlerts error={error} success={success} />
 
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Character Name *</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="Enter character name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                autoFocus
-              />
-              <p className="text-sm text-muted-foreground">
-                Note: Multiple characters can have the same name if they're from different series
-              </p>
-            </div>
-
-            {/* Wiki URL */}
-            <div className="space-y-2">
-              <Label htmlFor="wiki_url">Wiki URL</Label>
-              <Input
-                id="wiki_url"
-                name="wiki_url"
-                type="url"
-                placeholder="https://example.fandom.com/wiki/Character_Name"
-                value={formData.wiki_url}
-                onChange={handleInputChange}
-              />
-              <p className="text-sm text-muted-foreground">
-                Optional link to character's wiki page
-              </p>
-            </div>
-
-            {/* Details - Markdown Editor */}
-            <div className="space-y-2">
-              <Label htmlFor="details">Details (Markdown)</Label>
-              <div data-color-mode="light">
-                <MDEditor
-                  value={formData.details}
-                  onChange={handleDetailsChange}
-                  height={200}
-                  preview="live"
-                  hideToolbar={false}
-                  enableScroll={true}
-                  visibleDragbar={true}
+              {/* Name */}
+              <div className="space-y-2">
+                <Label htmlFor="name">Character Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Enter character name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  autoFocus
                 />
+                <p className="text-sm text-muted-foreground">
+                  Note: Multiple characters can have the same name if they're from different series
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Character details in markdown format. The editor shows live preview as you type.
-              </p>
-            </div>
 
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Character Image *</Label>
-              <Dropzone
-                accept={{
-                  'image/jpeg': ['.jpg', '.jpeg'],
-                  'image/png': ['.png'],
-                  'image/webp': ['.webp']
-                }}
-                onDrop={handleImageDrop}
-                onError={handleImageError}
-                src={image}
-                maxSize={5 * 1024 * 1024} // 5MB
-              >
-                <DropzoneEmptyState />
-                <DropzoneContent />
-              </Dropzone>
-              {image && image[0] && (
-                <div className="flex flex-col gap-2 mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPreview(true)}
-                    className="w-full"
-                  >
-                    Preview Image
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setImage(undefined)}
-                    className="w-full"
-                  >
-                    Clear Image
-                  </Button>
-                </div>
-              )}
-            </div>
+              {/* Wiki URL */}
+              <div className="space-y-2">
+                <Label htmlFor="wiki_url">Wiki URL</Label>
+                <Input
+                  id="wiki_url"
+                  name="wiki_url"
+                  type="url"
+                  placeholder="https://example.fandom.com/wiki/Character_Name"
+                  value={formData.wiki_url}
+                  onChange={handleInputChange}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Optional link to character's wiki page
+                </p>
+              </div>
 
-            {/* Image Preview Modal */}
-            {showPreview && image && image[0] && (
-              <div 
-                className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-                onClick={() => setShowPreview(false)}
-              >
-                <div className="relative max-w-4xl max-h-[90vh]">
-                  <img
-                    src={URL.createObjectURL(image[0])}
-                    alt="Preview"
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              {/* Details - Markdown Editor */}
+              <div className="space-y-2">
+                <Label htmlFor="details">Details (Markdown)</Label>
+                <div data-color-mode="light">
+                  <MDEditor
+                    value={formData.details}
+                    onChange={handleDetailsChange}
+                    height={200}
+                    preview="live"
+                    hideToolbar={false}
+                    enableScroll={true}
+                    visibleDragbar={true}
                   />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowPreview(false)}
-                    className="absolute top-4 right-4"
-                  >
-                    Close
-                  </Button>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Character details in markdown format. The editor shows live preview as you type.
+                </p>
               </div>
-            )}
 
-            {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={submitting} className="flex-1">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {submitting ? 'Creating...' : 'Create Character'}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => navigate('/characters')}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              {/* Image Upload */}
+              <ImageUploadSection
+                image={image}
+                onImageDrop={handleImageDrop}
+                onImageError={handleImageError}
+                onClear={() => setImage(undefined)}
+                label="Character Image"
+                required
+              />
+
+              {/* Buttons */}
+              <div className="flex gap-4 pt-2">
+                <Button type="submit" disabled={submitting} className="flex-1">
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {submitting ? 'Creating...' : 'Create Character'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate('/characters')}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

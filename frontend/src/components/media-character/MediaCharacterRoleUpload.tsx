@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import Loading from '@/components/Loading';
+import Loading from '@/components/common/Loading';
+import FormAlerts from '@/components/common/FormAlerts';
+import BackButton from '../common/BackButton';
 
 const MediaCharacterRoleUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -74,69 +76,66 @@ const MediaCharacterRoleUpload = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl">Create Character Role</CardTitle>
-          <CardDescription>
-            Add a new role for media characters
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-                {error}
+    <div className="container mx-auto p-4 max-w-4xl">
+      <div className="space-y-4">
+        <BackButton
+          to={mediaId ? `/media-character/upload?media=${mediaId}` : '/media-characters/roles'}
+          label={mediaId ? 'Back to Add Character' : 'Back to Roles'}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl">Create Character Role</CardTitle>
+            <CardDescription>
+              Add a new role for media characters
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <FormAlerts error={error} success={success} />
+
+              <div className="space-y-2">
+                <Label htmlFor="name">Role Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="e.g., Protagonist, Antagonist, Supporting"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  autoFocus
+                />
+                <p className="text-sm text-muted-foreground">
+                  Enter a descriptive name for this character role
+                </p>
               </div>
-            )}
 
-            {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded">
-                {success}
+              <div className="flex gap-4 pt-2">
+                <Button type="submit" disabled={submitting} className="flex-1">
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {submitting ? 'Creating...' : 'Create Role'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    if (mediaId) {
+                      navigate(`/media-character/upload?media=${mediaId}`);
+                    } else {
+                      navigate('/media-characters/roles');
+                    }
+                  }}
+                  disabled={submitting}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Role Name *</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="e.g., Protagonist, Antagonist, Supporting"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                autoFocus
-              />
-              <p className="text-sm text-muted-foreground">
-                Enter a descriptive name for this character role
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={submitting} className="flex-1">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {submitting ? 'Creating...' : 'Create Role'}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => {
-                  if (mediaId) {
-                    navigate(`/media-character/upload?media=${mediaId}`);
-                  } else {
-                    navigate('/media-characters/roles');
-                  }
-                }}
-                disabled={submitting}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

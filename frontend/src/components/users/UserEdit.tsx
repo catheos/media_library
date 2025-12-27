@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import Loading from "@/components/Loading";
+import Loading from "@/components/common/Loading";
+import ErrorCard from "@/components/common/ErrorCard";
+import FormAlerts from "@/components/common/FormAlerts";
 import { userService, ApiException } from "@/api";
 import type { User } from "@/api";
+import BackButton from "../common/BackButton";
 
 const UserEdit = () => {
   const { id } = useParams();
@@ -162,24 +165,21 @@ const UserEdit = () => {
   // Error state
   if (error && !user) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <ErrorCard 
+        message={error}
+        onRetry={() => window.location.reload()}
+        retryText="Try Again"
+      />
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-4 max-w-4xl">
+      <BackButton
+        to={`/users/${id}`}
+        label="Back to User View"
+      />
+      
       <Card>
         <CardHeader>
           <CardTitle className="text-3xl">Edit Profile</CardTitle>
@@ -189,17 +189,7 @@ const UserEdit = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded">
-                {success}
-              </div>
-            )}
+            <FormAlerts error={error} success={success} />
 
             {/* Username */}
             <div className="space-y-2">

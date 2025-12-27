@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import FormAlerts from '@/components/common/FormAlerts';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -61,11 +62,7 @@ const Register = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-                {error}
-              </div>
-            )}
+            <FormAlerts error={error} />
 
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
