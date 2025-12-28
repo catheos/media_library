@@ -3,6 +3,7 @@ export { userService } from './services/users';
 export { mediaService } from './services/media';
 export { characterService } from './services/characters';
 export { mediaCharacterService } from './services/media-character';
+export { mediaUserService } from './services/media-user';
 
 export type {
   User,
@@ -41,4 +42,15 @@ export type {
   CreateMediaCharacterResponse,
   UpdateMediaCharacterResponse,
   DeleteMediaCharacterResponse,
-} from './services/media-character'
+} from './services/media-character';
+
+export type {
+  UserMediaStatus,
+  UserMedia,
+  UserMediaListResponse,
+  CreateUserMediaResponse,
+  UpdateUserMediaResponse,
+  DeleteUserMediaResponse,
+  CreateUserMediaRequest,
+  UpdateUserMediaRequest,
+} from './services/media-user';

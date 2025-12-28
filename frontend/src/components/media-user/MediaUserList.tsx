@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import Loading from "@/components/common/Loading";
 import ImageContainer from "@/components/common/ImageContainer";
 import ErrorCard from "@/components/common/ErrorCard";
-import { mediaService, ApiException } from "@/api";
-import type { PaginatedResponse } from "@/api";
-import { useScrollRestoration } from "@/hooks/useScrollRestoration";
-import { Film } from "lucide-react";
 import SearchBar from "../common/Searchbar";
+import { mediaService, mediaUserService, ApiException } from "@/api";
+import type { UserMediaListResponse } from "@/api";
+import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { Film, Star } from "lucide-react";
 import { parseSearchQuery, filtersToQueryParams } from "@/lib/utils";
 import type { SearchFilters } from "@/lib/utils";
 
@@ -24,14 +24,14 @@ import {
 } from "@/components/ui/pagination";
 
 // Component to handle individual media card with image fetching
-const MediaCard = ({ media }: { media: any }) => {
+const MediaUserCard = ({ userMedia }: { userMedia: any }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchImage = async () => {
       try {
-        const blob = await mediaService.getSingleCover(media.id);
+        const blob = await mediaService.getSingleCover(userMedia.media.id);
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
       } catch (err) {
@@ -46,57 +46,79 @@ const MediaCard = ({ media }: { media: any }) => {
         URL.revokeObjectURL(imageUrl);
       }
     };
-  }, [media.id]);
+  }, [userMedia.media.id]);
 
   return (
-    <Link to={`/media/${media.id}`} className="block group">
+    <Link to={`/media-user/${userMedia.id}`} className="block group">
       <Card className="p-2 overflow-hidden transition-transform h-full group-hover:scale-101">
         <ImageContainer
           imageUrl={imageUrl}
           imageFailed={imageFailed}
-          alt={media.title}
+          alt={userMedia.media.title}
           FallbackIcon={Film}
           aspectRatio="portrait"
           iconSize="md"
         />
         <CardContent className="space-y-1">
-          <h3 className="mt-1 font-semibold truncate">{media.title}</h3>
-          {media.release_year && (
+          <h3 className="mt-1 font-semibold truncate">{userMedia.media.title}</h3>
+          {userMedia.media.release_year && (
             <p className="text-sm text-muted-foreground">
-              {media.release_year}
+              {userMedia.media.release_year}
             </p>
           )}
+          
+          {/* User's score */}
+          {userMedia.score && (
+            <div className="flex items-center gap-1">
+              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+              <span className="text-sm font-medium">{userMedia.score}</span>
+            </div>
+          )}
+
           <div className="flex gap-2 flex-wrap">
             <Badge variant="secondary" className="text-xs">
-              {media.type.name}
+              {userMedia.media.type.name}
             </Badge>
-            <Badge variant="outline" className="text-xs">
-              {media.status.name}
-            </Badge>
+            {userMedia.status && (
+              <Badge variant="outline" className="text-xs">
+                {userMedia.status.name}
+              </Badge>
+            )}
           </div>
+
+          {/* Current progress */}
+          {userMedia.current_progress && (
+            <p className="text-xs text-muted-foreground truncate">
+              {userMedia.current_progress}
+            </p>
+          )}
         </CardContent>
       </Card>
     </Link>
   );
 };
 
-const MediaList = () => {
+const MediaUserList = () => {
   const { is_authenticated, is_loading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const limit = 20;
   const page = parseInt(searchParams.get('page') || '1');
   const searchQuery = searchParams.get('q') || '';
   
-  const [data, setData] = useState<PaginatedResponse | null>(null);
+  const [data, setData] = useState<UserMediaListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Calculate total pages
+  const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
   // scroll restoration
   const contentReady = !loading && !error && data !== null;
   useScrollRestoration(contentReady);
 
   useEffect(() => {
-    const fetchMedia = async () => {
+    const fetchUserMedia = async () => {
       setLoading(true);
       setError('');
       
@@ -104,17 +126,20 @@ const MediaList = () => {
         let filterParams: Record<string, string> = {};
         
         if (searchQuery) {
-          const filters = parseSearchQuery(searchQuery);
+          const filters = parseSearchQuery(searchQuery, 'media');
           filterParams = filtersToQueryParams(filters);
         }
         
-        const response = await mediaService.getAll(page, filterParams);
+        const response = await mediaUserService.getAll({
+          limit: limit,
+          ...filterParams
+        });
         setData(response);
       } catch (err) {
         if (err instanceof ApiException) {
           setError(err.message);
         } else {
-          setError('An error occurred while loading media');
+          setError('An error occurred while loading your library');
         }
       } finally {
         setLoading(false);
@@ -122,7 +147,7 @@ const MediaList = () => {
     };
 
     if (is_authenticated) {
-      fetchMedia();
+      fetchUserMedia();
     }
   }, [page, searchQuery, is_authenticated]);
 
@@ -156,25 +181,30 @@ const MediaList = () => {
     return <ErrorCard message={error} onRetry={() => window.location.reload()} />;
   }
 
-  if (!data || data.media.length === 0) {
+  if (!data || data.user_media.length === 0) {
     return (
       <div className="container mx-auto p-4 max-w-4xl">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-1xl font-bold">/media</h1>
+            <h1 className="text-1xl font-bold">/library</h1>
             <p className="text-muted-foreground">
               0 items
             </p>
           </div>
-          
           <SearchBar
             value={searchQuery}
             onChange={handleSearch}
-            placeholder='Search media (e.g. title:"Star Wars" tag:Action year:>2020)'
-            context='media'
+            placeholder='Search your library (e.g. "Dexter" or title:"Breaking Bad" status:watching)'
+            context="library"
           />
-          <div className="flex items-center justify-center py-8">
-            <p>No media found</p>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <p className="text-muted-foreground">Your library is empty</p>
+            <Link 
+              to="/media"
+              className="text-primary hover:underline font-medium"
+            >
+              Browse media to add to your library
+            </Link>
           </div>
         </div>
       </div>
@@ -185,29 +215,29 @@ const MediaList = () => {
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-1xl font-bold">/media</h1>
+          <h1 className="text-1xl font-bold">/library</h1>
           <p className="text-muted-foreground">
             {data.total} {data.total === 1 ? 'item' : 'items'}
           </p>
         </div>
-        
+
         {/* Search Bar */}
         <SearchBar
           value={searchQuery}
           onChange={handleSearch}
-          placeholder='Search media (e.g. title:"Star Wars" tag:Action year:>2020)'
-          context='media'  
+          placeholder='Search your library (e.g. "Dexter" or title:"Breaking Bad" status:watching)'
+          context="library"
         />
 
         {/* Media grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {data.media.map((media) => (
-            <MediaCard key={media.id} media={media} />
+          {data.user_media.map((userMedia) => (
+            <MediaUserCard key={userMedia.id} userMedia={userMedia} />
           ))}
         </div>
 
         {/* Pagination */}
-        {data.total_pages > 1 && (
+        {totalPages > 1 && (
           <Pagination>
             <PaginationContent>
               <PaginationItem>
@@ -217,7 +247,7 @@ const MediaList = () => {
                 />
               </PaginationItem>
               
-              {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((pageNum) => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
                 <PaginationItem key={pageNum}>
                   <PaginationLink
                     to={`?page=${pageNum}${searchQuery ? `&q=${searchQuery}` : ''}`}
@@ -231,7 +261,7 @@ const MediaList = () => {
               <PaginationItem>
                 <PaginationNext
                   to={`?page=${page + 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
-                  className={page === data.total_pages ? 'pointer-events-none opacity-50' : ''}
+                  className={page === totalPages ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
             </PaginationContent>
@@ -242,4 +272,4 @@ const MediaList = () => {
   );
 };
 
-export default MediaList;
+export default MediaUserList;

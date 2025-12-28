@@ -22,6 +22,9 @@ import MediaCharacterView from "./components/media-character/MediaCharacterView"
 import MediaCharacterUpload from "./components/media-character/MediaCharacterUpload";
 import MediaCharacterRoleUpload from "./components/media-character/MediaCharacterRoleUpload";
 import MediaCharacterRoleView from "./components/media-character/MediaCharacterRoleView";
+import MediaUserList from "./components/media-user/MediaUserList";
+import MediaUserView from "./components/media-user/MediaUserView";
+import MediaUserEdit from "./components/media-user/MediaUserEdit";
 
 // Layout component
 function Layout() {
@@ -58,6 +61,9 @@ const router = createBrowserRouter([
       { path: "media-character/:id", element: <MediaCharacterView />},
       { path: "media-character/roles/upload", element: <MediaCharacterRoleUpload />},
       { path: "media-character/roles/:id", element: <MediaCharacterRoleView />},
+      { path: "media-user", element: <MediaUserList />},
+      { path: "media-user/:id", element: <MediaUserView />},
+      { path: "media-user/:id/edit", element: <MediaUserEdit />},
     ],
   },
 ]);

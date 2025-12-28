@@ -63,8 +63,16 @@ export interface DeleteMediaResponse {
 
 export const mediaService = {
   // Get all media
-  getAll: async (page?: number): Promise<PaginatedResponse> => {
-    const response = await api(`/api/media${(page) ? `?page=${page}` : ''}`);
+  getAll: async (
+    page: number = 1,
+    filters?: Record<string, string>
+  ): Promise<PaginatedResponse> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      ...filters
+    });
+
+    const response = await api(`/api/media?${params.toString()}`);
     return response.json();
   },
 

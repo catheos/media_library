@@ -3,21 +3,126 @@ const router = express.Router();
 import db from "../db";
 import { requireBody } from "../middleware/validateBody";
 
+router.route("/statuses")
+  // GET all user media statuses
+  .get(async (req: Request, res: Response) => {
+    try {
+      const statuses = await db('user_media_status_types')
+        .orderBy('id', 'asc');
+
+      res.json(statuses);
+
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+router.route("/statuses/:id")
+  // GET single user media status
+  .get(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const status = await db('user_media_status_types')
+        .where({ id: parseInt(id) })
+        .first();
+
+      if (!status) {
+        res.status(404).json({ error: 'Status not found' });
+        return;
+      }
+
+      res.json(status);
+
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
 // ============= MEDIA-USER BASE ROUTES ================
 router.route("/")
   // GET all media-user entries for current user
   .get(async (req: Request, res: Response) => {
     try {
       const user_id = req.user!.user_id;
-      const { status_id, search, limit } = req.query;
+      
+      // Extract search filters from query params
+      const { 
+        // Media filters
+        title,
+        type,
+        status,
+        year,
+        year_gt,
+        year_lt,
+        
+        // User-specific filters
+        user_status,
+        user_score,
+        user_score_gt,
+        user_score_lt,
+        
+        limit 
+      } = req.query;
 
-      // Start building the query
+      // Build base query
       let query = db('user_media')
         .where('user_media.user_id', user_id)
         .join('media', 'user_media.media_id', 'media.id')
         .join('media_types', 'media.type_id', 'media_types.id')
         .join('media_status_types', 'media.status_id', 'media_status_types.id')
-        .leftJoin('user_media_status_types', 'user_media.status_id', 'user_media_status_types.id')
+        .leftJoin('user_media_status_types', 'user_media.status_id', 'user_media_status_types.id');
+
+      // Apply Media filters
+      if (title) {
+        query = query.where('media.title', 'like', `%${title}%`);
+      }
+
+      if (type) {
+        query = query.where('media_types.name', type as string);
+      }
+
+      if (status) {
+        query = query.where('media_status_types.name', status as string);
+      }
+
+      if (year) {
+        query = query.where('media.release_year', parseInt(year as string));
+      } else {
+        if (year_gt) {
+          query = query.where('media.release_year', '>', parseInt(year_gt as string));
+        }
+        if (year_lt) {
+          query = query.where('media.release_year', '<', parseInt(year_lt as string));
+        }
+      }
+
+      // Apply User-specific filters
+      if (user_status) {
+        query = query.where('user_media_status_types.name', user_status as string);
+      }
+
+      if (user_score) {
+        query = query.where('user_media.score', parseInt(user_score as string));
+      } else {
+        if (user_score_gt) {
+          query = query.where('user_media.score', '>', parseInt(user_score_gt as string));
+        }
+        if (user_score_lt) {
+          query = query.where('user_media.score', '<', parseInt(user_score_lt as string));
+        }
+      }
+
+      // Get total count with filters applied
+      const countQuery = query.clone();
+      const [{ count }] = await countQuery.count('* as count');
+      const total = parseInt(count as string);
+
+      // Optional limit; default to 20 if not specified
+      const maxResults = limit ? parseInt(limit as string, 10) : 20;
+
+      // Get entries with filters
+      const user_media_entries = await query
         .select(
           'user_media.id',
           'user_media.user_id',
@@ -38,27 +143,8 @@ router.route("/")
           'media_status_types.name as media_status_name',
           'media.description'
         )
+        .limit(maxResults)
         .orderBy('user_media.created_at', 'desc');
-
-      // Optional status filter
-      if (status_id) {
-        query = query.where('user_media.status_id', parseInt(status_id as string));
-      }
-
-      // Optional search filter
-      if (search) {
-        query = query.where('media.title', 'like', `%${search}%`);
-      }
-
-      // Get total count before limit
-      const [{ count }] = await query.clone().count('* as count');
-      const total = parseInt(count as string);
-
-      // Optional limit; default to 20 if not specified
-      const maxResults = limit ? parseInt(limit as string, 10) : 20;
-      query = query.limit(maxResults);
-
-      const user_media_entries = await query;
 
       // Format response
       const formatted = user_media_entries.map((entry: any) => ({

@@ -19,60 +19,97 @@ router.route("/")
   // GET all characters with pagination and search
   .get(async (req: Request, res: Response) => {
     try {
+      console.log('Character get params:', req.query)
       const page = parseInt(req.query.page as string) || 1;
       const page_size = parseInt(process.env.CHARACTER_PAGE_SIZE || '20');
       const offset = (page - 1) * page_size;
-      const search = req.query.search as string;
 
-      let query = db('character');
+      // Extract search filters
+      const { 
+        name,           // Character name
+        media,          // Media title they appear in
+        appearances,    // Number filter
+        appearances_gt, 
+        appearances_lt 
+      } = req.query;
 
-      // Add search filter if provided
-      if (search) {
-        query = query.where('name', 'like', `%${search}%`);
+      // Build base query
+      let query = db('character')
+        .join('user', 'character.created_by', 'user.id')
+        .leftJoin('media_character', 'character.id', 'media_character.character_id');
+
+      // Apply name filter
+      if (name) {
+        query = query.where('character.name', 'like', `%${name}%`);
       }
 
-      // Get total count
-      const [{ count }] = await query.clone().count('* as count');
+      // Apply media filter (character appears in specific media)
+      if (media) {
+        query = query
+          .join('media', 'media_character.media_id', 'media.id')
+          .where('media.title', 'like', `%${media}%`);
+      }
+
+      // Get total count with filters
+      const countQuery = query.clone();
+      const [{ count }] = await countQuery.countDistinct('character.id as count');
       const total = parseInt(count as string);
       const total_pages = Math.ceil(total / page_size);
 
-      // Get paginated characters with media count for context
-      const characters = await query
+      // Get paginated characters
+      const character_list = await query
         .select(
           'character.id',
           'character.name',
           'character.details',
           'character.wiki_url',
-          'character.created_at',
-          'character.updated_at',
           'character.created_by',
-          'user.username as created_by_username',
-          db.raw('COUNT(media_character.id) as media_count')
+          'user.username as created_by_username'
         )
-        .leftJoin('media_character', 'character.id', 'media_character.character_id')
-        .join('user', 'character.created_by', 'user.id')
+        .count('media_character.id as media_count')
         .groupBy('character.id')
         .limit(page_size)
         .offset(offset)
-        .orderBy('name', 'asc');
+        .orderBy('character.name', 'asc');
 
-      // Parse JSON details field
-      const formatted_characters = characters.map((char: any) => {
-        const { created_by, created_by_username, ...character_destructure } = char;
-        
-        return {
-          ...character_destructure,
-          details: char.details ? JSON.parse(char.details) : null,
-          created_by: {
-            id: created_by,
-            username: created_by_username
-          },
-          media_count: parseInt(char.media_count)
+      // Apply appearances filter AFTER grouping
+      let filtered_characters = character_list;
+      
+      if (appearances) {
+        const count = parseInt(appearances as string);
+        filtered_characters = filtered_characters.filter((c: any) => 
+          parseInt(c.media_count) === count
+        );
+      } else {
+        if (appearances_gt) {
+          const count = parseInt(appearances_gt as string);
+          filtered_characters = filtered_characters.filter((c: any) => 
+            parseInt(c.media_count) > count
+          );
         }
-      });
+        if (appearances_lt) {
+          const count = parseInt(appearances_lt as string);
+          filtered_characters = filtered_characters.filter((c: any) => 
+            parseInt(c.media_count) < count
+          );
+        }
+      }
+
+      // Format response
+      const characters = filtered_characters.map((char: any) => ({
+        id: char.id,
+        name: char.name,
+        details: char.details,
+        wiki_url: char.wiki_url,
+        media_count: parseInt(char.media_count),
+        created_by: {
+          id: char.created_by,
+          username: char.created_by_username
+        }
+      }));
 
       res.json({
-        characters: formatted_characters,
+        characters,
         total,
         page,
         page_size,

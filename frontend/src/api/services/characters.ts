@@ -67,11 +67,15 @@ export interface UpdateCharacterResponse {
 
 export const characterService = {
   // Get all characters with pagination and search
-  getAll: async (page: number = 1, search?: string): Promise<CharacterListResponse> => {
-    const params = new URLSearchParams({ page: page.toString() });
-    if (search) {
-      params.append('search', search);
-    }
+  getAll: async (
+    page: number = 1,
+    filters?: Record<string, string>
+  ): Promise<CharacterListResponse> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      ...filters
+    });
+    
     const response = await api(`/api/characters?${params.toString()}`);
     return response.json();
   },

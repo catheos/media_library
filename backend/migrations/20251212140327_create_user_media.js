@@ -14,7 +14,7 @@ exports.up = function(knex) {
     table.timestamp('progress_updated').nullable();
     
     // Rating/Review
-    table.decimal('score', 3, 1).nullable();
+    table.tinyint('score').unsigned().nullable();
     table.text('review').nullable();
     table.timestamp('rating_created').nullable();
     

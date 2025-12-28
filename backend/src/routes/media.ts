@@ -57,16 +57,54 @@ router.route("/")
       const page_size = parseInt(process.env.MEDIA_PAGE_SIZE || '20');
       const offset = (page - 1) * page_size;
 
-      // Get total count
-      const [{ count }] = await db('media').count('* as count');
+      // Extract search filters from query params
+      const { 
+        title, 
+        year, 
+        year_gt, 
+        year_lt, 
+        type, 
+        status 
+      } = req.query;
+
+      // Build base query
+      let query = db('media')
+        .join('media_types', 'media.type_id', 'media_types.id')
+        .join('media_status_types', 'media.status_id', 'media_status_types.id')
+        .join('user', 'media.created_by', 'user.id');
+
+      // Apply filters
+      if (title) {
+        query = query.where('media.title', 'like', `%${title}%`);
+      }
+
+      if (year) {
+        query = query.where('media.release_year', parseInt(year as string));
+      } else {
+        if (year_gt) {
+          query = query.where('media.release_year', '>', parseInt(year_gt as string));
+        }
+        if (year_lt) {
+          query = query.where('media.release_year', '<', parseInt(year_lt as string));
+        }
+      }
+
+      if (type) {
+        query = query.where('media_types.name', type as string);
+      }
+
+      if (status) {
+        query = query.where('media_status_types.name', status as string);
+      }
+
+      // Get total count with filters applied
+      const countQuery = query.clone();
+      const [{ count }] = await countQuery.count('* as count');
       const total = parseInt(count as string);
       const total_pages = Math.ceil(total / page_size);
 
-      // Get paginated media
-      const media_list = await db('media')
-        .join('media_types', 'media.type_id', 'media_types.id')
-        .join('media_status_types', 'media.status_id', 'media_status_types.id')
-        .join('user', 'media.created_by', 'user.id')
+      // Get paginated media with filters
+      const media_list = await query
         .select(
           'media.id',
           'media.title',
@@ -81,7 +119,7 @@ router.route("/")
         )
         .limit(page_size)
         .offset(offset)
-        .orderBy('media.id', 'desc'); // or whatever order you prefer
+        .orderBy('media.id', 'desc');
 
       // Format response
       const media = media_list.map((media: MediaDbRow) => ({

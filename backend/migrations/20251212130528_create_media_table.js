@@ -7,7 +7,7 @@ exports.up = function(knex) {
     table.increments('id').primary();
     table.string('title', 255).notNullable();
     table.integer('type_id').unsigned().notNullable();
-    table.integer('release_year').nullable();
+    table.integer('release_year').unsigned().nullable();
     table.integer('status_id').unsigned().notNullable();
     table.text('description').nullable();
     table.integer("created_by").unsigned().notNullable();

@@ -1,14 +1,17 @@
-import { Navigate, Link, useSearchParams } from "react-router-dom";
+import { Navigate, Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Loading from "@/components/common/Loading";
 import ErrorCard from "@/components/common/ErrorCard";
 import ImageContainer from "@/components/common/ImageContainer";
+import SearchBar from "../common/Searchbar";
 import { characterService, ApiException } from "@/api";
 import type { CharacterListResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { User } from "lucide-react";
+import { parseSearchQuery, filtersToQueryParams } from "@/lib/utils";
+import type { SearchFilters } from "@/lib/utils";
 
 import {
   Pagination,
@@ -71,7 +74,9 @@ const CharacterCard = ({ character }: { character: any }) => {
 const CharacterList = () => {
   const { is_authenticated, is_loading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const page = parseInt(searchParams.get('page') || '1');
+  const searchQuery = searchParams.get('q') || '';
   
   const [data, setData] = useState<CharacterListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +92,14 @@ const CharacterList = () => {
       setError('');
       
       try {
-        const response = await characterService.getAll(page);
+        let filterParams: Record<string, string> = {};
+        
+        if (searchQuery) {
+          const filters = parseSearchQuery(searchQuery, 'character'); // Add context here
+          filterParams = filtersToQueryParams(filters);
+        }
+        
+        const response = await characterService.getAll(page, filterParams);
         setData(response);
       } catch (err) {
         if (err instanceof ApiException) {
@@ -103,7 +115,21 @@ const CharacterList = () => {
     if (is_authenticated) {
       fetchCharacters();
     }
-  }, [page, is_authenticated]);
+  }, [page, searchQuery, is_authenticated]);
+
+  const handleSearch = (query: string, filters: SearchFilters) => {
+    const params = new URLSearchParams();
+    
+    if (query) {
+      params.set('q', query);
+    }
+    
+    // Reset to page 1 when searching
+    params.set('page', '1');
+    
+    // Use navigate instead of setSearchParams to avoid full refresh
+    navigate(`?${params.toString()}`, { replace: true });
+  };
 
   if (is_loading) {
     return <Loading fullScreen />;
@@ -124,8 +150,22 @@ const CharacterList = () => {
   if (!data || data.characters.length === 0) {
     return (
       <div className="container mx-auto p-4 max-w-4xl">
-        <div className="flex items-center justify-center py-8">
-          <p>No characters found</p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-1xl font-bold">/characters</h1>
+            <p className="text-muted-foreground">
+              0 items
+            </p>
+          </div>
+          
+          <SearchBar
+            value={searchQuery}
+            onChange={handleSearch}
+            placeholder='Search characters (e.g. name:"Naruto" tag:Protagonist)'
+          />
+          <div className="flex items-center justify-center py-8">
+            <p>No characters found</p>
+          </div>
         </div>
       </div>
     );
@@ -134,6 +174,21 @@ const CharacterList = () => {
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-1xl font-bold">/characters</h1>
+          <p className="text-muted-foreground">
+            {data.total} {data.total === 1 ? 'item' : 'items'}
+          </p>
+        </div>
+        
+        {/* Search Bar */}
+        <SearchBar
+          value={searchQuery}
+          onChange={handleSearch}
+          placeholder='Search (e.g. "Dexter" or name:"Dexter Morgan" media:Dexter)'
+          context="character"
+        />
+
         {/* Characters grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {data.characters.map((character) => (
@@ -147,7 +202,7 @@ const CharacterList = () => {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  to={`?page=${page - 1}`}
+                  to={`?page=${page - 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
                   className={page === 1 ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
@@ -155,7 +210,7 @@ const CharacterList = () => {
               {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((pageNum) => (
                 <PaginationItem key={pageNum}>
                   <PaginationLink
-                    to={`?page=${pageNum}`}
+                    to={`?page=${pageNum}${searchQuery ? `&q=${searchQuery}` : ''}`}
                     isActive={pageNum === page}
                   >
                     {pageNum}
@@ -165,7 +220,7 @@ const CharacterList = () => {
               
               <PaginationItem>
                 <PaginationNext
-                  to={`?page=${page + 1}`}
+                  to={`?page=${page + 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
                   className={page === data.total_pages ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>

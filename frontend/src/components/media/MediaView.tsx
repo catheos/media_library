@@ -18,9 +18,9 @@ import {
 import Loading from "@/components/common/Loading";
 import ImageContainer from "@/components/common/ImageContainer";
 import ErrorCard from "@/components/common/ErrorCard";
-import { mediaService, mediaCharacterService, characterService, ApiException } from "@/api";
-import type { Media, MediaCharacter } from "@/api";
-import { User, Film } from "lucide-react";
+import { mediaService, mediaCharacterService, characterService, mediaUserService, ApiException } from "@/api";
+import type { Media, MediaCharacter, UserMedia } from "@/api";
+import { User, Film, BookmarkPlus, BookmarkCheck, Loader2 } from "lucide-react";
 import BackButton from "../common/BackButton";
 
 interface CharacterWithImage extends MediaCharacter {
@@ -40,8 +40,14 @@ const MediaView = () => {
   const [charactersLoading, setCharactersLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  
+  // Library state
+  const [userMediaEntry, setUserMediaEntry] = useState<UserMedia | null>(null);
+  const [checkingLibrary, setCheckingLibrary] = useState(true);
+  const [libraryActionLoading, setLibraryActionLoading] = useState(false);
 
   const isOwner = current_user?.id === media?.created_by.id;
+  const isInLibrary = userMediaEntry !== null;
 
   useEffect(() => {
     const fetchMedia = async () => {
@@ -64,6 +70,27 @@ const MediaView = () => {
 
     if (is_authenticated && id) {
       fetchMedia();
+    }
+  }, [id, is_authenticated]);
+
+  // Check if media is in user's library
+  useEffect(() => {
+    const checkLibrary = async () => {
+      if (!id) return;
+      
+      setCheckingLibrary(true);
+      try {
+        const entry = await mediaUserService.checkInLibrary(parseInt(id));
+        setUserMediaEntry(entry);
+      } catch (err) {
+        console.error('Failed to check library:', err);
+      } finally {
+        setCheckingLibrary(false);
+      }
+    };
+
+    if (is_authenticated && id) {
+      checkLibrary();
     }
   }, [id, is_authenticated]);
 
@@ -131,6 +158,44 @@ const MediaView = () => {
       }
     };
   }, [id, is_authenticated]);
+
+  const handleAddToLibrary = async () => {
+    if (!id) return;
+    
+    setLibraryActionLoading(true);
+    try {
+      const response = await mediaUserService.create({
+        media_id: parseInt(id)
+      });
+      setUserMediaEntry(response.user_media);
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message);
+      } else {
+        setError('Failed to add to library');
+      }
+    } finally {
+      setLibraryActionLoading(false);
+    }
+  };
+
+  const handleRemoveFromLibrary = async () => {
+    if (!userMediaEntry) return;
+    
+    setLibraryActionLoading(true);
+    try {
+      await mediaUserService.delete(userMediaEntry.id);
+      setUserMediaEntry(null);
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message);
+      } else {
+        setError('Failed to remove from library');
+      }
+    } finally {
+      setLibraryActionLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -200,41 +265,98 @@ const MediaView = () => {
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                   <CardTitle className="text-3xl">{media.title}</CardTitle>
-                  {isOwner && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/media/${id}/edit`}>Edit</Link>
+                  <div className="flex gap-2">
+                    {/* Library Button */}
+                    {checkingLibrary ? (
+                      <Button size="sm" disabled>
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       </Button>
+                    ) : isInLibrary ? (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button 
-                            variant="destructive" 
-                            size="sm"
-                            disabled={deleting}
+                            size="sm" 
+                            variant="secondary"
+                            disabled={libraryActionLoading}
                           >
-                            {deleting ? 'Deleting...' : 'Delete'}
+                            {libraryActionLoading ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <BookmarkCheck />
+                            )}
+                            In Library
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogTitle>Remove from Library?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete "{media.title}". This action cannot be undone.
+                              This will remove "{media.title}" from your library. Your progress and ratings will be deleted.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={handleDelete}
+                              onClick={handleRemoveFromLibrary}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              Delete
+                              Remove
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </div>
-                  )}
+                    ) : (
+                      <Button 
+                        size="sm"
+                        onClick={handleAddToLibrary}
+                        disabled={libraryActionLoading}
+                      >
+                        {libraryActionLoading ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <BookmarkPlus />
+                        )}
+                        Add to Library
+                      </Button>
+                    )}
+
+                    {/* Owner Actions */}
+                    {isOwner && (
+                      <>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/media/${id}/edit`}>Edit</Link>
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              disabled={deleting}
+                            >
+                              {deleting ? 'Deleting...' : 'Delete'}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete "{media.title}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={handleDelete}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
