@@ -163,8 +163,15 @@ const CharacterList = () => {
             onChange={handleSearch}
             placeholder='Search characters (e.g. name:"Naruto" tag:Protagonist)'
           />
-          <div className="flex items-center justify-center py-8">
-            <p>No characters found</p>
+
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <p className="text-muted-foreground">No characters found</p>
+            <Link 
+              to="/characters/upload"
+              className="text-primary hover:underline font-medium"
+            >
+              Upload character to add to here
+            </Link>
           </div>
         </div>
       </div>

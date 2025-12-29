@@ -173,8 +173,14 @@ const MediaList = () => {
             placeholder='Search media (e.g. title:"Star Wars" tag:Action year:>2020)'
             context='media'
           />
-          <div className="flex items-center justify-center py-8">
-            <p>No media found</p>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <p className="text-muted-foreground">No media found</p>
+            <Link 
+              to="/media/upload"
+              className="text-primary hover:underline font-medium"
+            >
+              Upload media to add to here
+            </Link>
           </div>
         </div>
       </div>
