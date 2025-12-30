@@ -2,7 +2,6 @@ import express, { Request, Response } from "express";
 const router = express.Router();
 import db from "../db";
 import { requireBody } from "../middleware/validateBody";
-import { create } from "domain";
 
 // Define types
 interface MediaCharacterDbRow {

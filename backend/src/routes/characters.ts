@@ -19,7 +19,6 @@ router.route("/")
   // GET all characters with pagination and search
   .get(async (req: Request, res: Response) => {
     try {
-      console.log('Character get params:', req.query)
       const page = parseInt(req.query.page as string) || 1;
       const page_size = parseInt(process.env.CHARACTER_PAGE_SIZE || '20');
       const offset = (page - 1) * page_size;
@@ -30,7 +29,9 @@ router.route("/")
         media,          // Media title they appear in
         appearances,    // Number filter
         appearances_gt, 
-        appearances_lt 
+        appearances_lt,
+        sort,
+        order
       } = req.query;
 
       // Build base query
@@ -56,6 +57,20 @@ router.route("/")
       const total = parseInt(count as string);
       const total_pages = Math.ceil(total / page_size);
 
+      // Determine sort column and order
+      const sortColumn = (() => {
+        switch (sort as string) {
+          case 'name':
+            return 'character.name';
+          case 'created_at':
+            return 'character.created_at';
+          default:
+            return 'character.created_at';
+        }
+      })();
+
+      const sortOrder = (order === 'asc' || order === 'desc') ? order : 'desc';
+
       // Get paginated characters
       const character_list = await query
         .select(
@@ -70,7 +85,8 @@ router.route("/")
         .groupBy('character.id')
         .limit(page_size)
         .offset(offset)
-        .orderBy('character.name', 'asc');
+        .orderBy(sortColumn, sortOrder)
+        .orderBy('character.id', 'asc');
 
       // Apply appearances filter AFTER grouping
       let filtered_characters = character_list;
@@ -173,6 +189,46 @@ router.route("/")
       res.status(500).json({ error: error.message });
     }
   })
+
+router.route("/autocomplete")
+  // GET autocomplete
+  .get(async (req: Request, res: Response) => {
+    try {
+      const { key, query, limit = '5' } = req.query;
+
+      if (!key || !query) {
+        return res.status(400).json({ error: 'Missing required parameters: key, query' });
+      }
+
+      // Cap limit to requested or 20.
+      const requestedLimit = parseInt(limit as string);
+      const searchLimit = Math.min(requestedLimit, 20);
+
+      let results: { value: string }[] = [];
+
+      switch (key) {
+        case 'name':
+          // Search character names
+          const names = await db('character')
+            .select('name as value')
+            .where('name', 'like', `%${query}%`)
+            .limit(searchLimit)
+            .orderBy('name', 'asc');
+          
+          results = names;
+          break;
+
+        default:
+          // For unknown keys, return empty results
+          results = [];
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error('Autocomplete error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
 router.route("/:id")
   // GET single character by ID

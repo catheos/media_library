@@ -1,4 +1,4 @@
-import { Navigate, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,8 +11,7 @@ import { mediaService, mediaUserService, ApiException } from "@/api";
 import type { UserMediaListResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { Film, Star } from "lucide-react";
-import { parseSearchQuery, filtersToQueryParams } from "@/lib/utils";
-import type { SearchFilters } from "@/lib/utils";
+import { parseSearchQuery, filtersToQueryParams, queryParamsToSearchQuery } from "@/lib/utils";
 
 import {
   Pagination,
@@ -22,6 +21,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useSearchNavigation } from "@/hooks/useSearchNavigation";
 
 // Component to handle individual media card with image fetching
 const MediaUserCard = ({ userMedia }: { userMedia: any }) => {
@@ -100,22 +100,35 @@ const MediaUserCard = ({ userMedia }: { userMedia: any }) => {
 
 const MediaUserList = () => {
   const { is_authenticated, is_loading } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const limit = 20;
+  const { handleSearch, searchParams } = useSearchNavigation();
   const page = parseInt(searchParams.get('page') || '1');
-  const searchQuery = searchParams.get('q') || '';
+  const searchQuery = queryParamsToSearchQuery(searchParams);
   
   const [data, setData] = useState<UserMediaListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Calculate total pages
-  const totalPages = data ? Math.ceil(data.total / limit) : 0;
+  // Read from localStorage with defaults
+  const [searchSettings, setSearchSettings] = useState<{ sort?: string; order?: 'asc' | 'desc' }>(() => {
+    const saved = localStorage.getItem('mediaUserSearchSettings');
+    return saved ? JSON.parse(saved) : { sort: 'created_at', order: 'desc' };
+  });
+
+  // Save to localStorage when settings change
+  const handleSettingsChange = (newSettings: { sort?: string; order?: 'asc' | 'desc' }) => {
+    setSearchSettings(newSettings);
+    localStorage.setItem('mediaUserSearchSettings', JSON.stringify(newSettings));
+  };
 
   // scroll restoration
-  const contentReady = !loading && !error && data !== null;
-  useScrollRestoration(contentReady);
+  useScrollRestoration(!loading && !error && data !== null);
+
+  // for pagination
+  const getPaginationUrl = (newPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    return `?${params.toString()}`;
+  };
 
   useEffect(() => {
     const fetchUserMedia = async () => {
@@ -126,14 +139,14 @@ const MediaUserList = () => {
         let filterParams: Record<string, string> = {};
         
         if (searchQuery) {
-          const filters = parseSearchQuery(searchQuery, 'media');
-          filterParams = filtersToQueryParams(filters);
+          const filters = parseSearchQuery(searchQuery, 'library');
+          filterParams = filtersToQueryParams(filters, searchSettings);
+        } else {
+          // Even without search query, include sort/order
+          filterParams = filtersToQueryParams({}, searchSettings);
         }
         
-        const response = await mediaUserService.getAll({
-          limit: limit,
-          ...filterParams
-        });
+        const response = await mediaUserService.getAll(page, filterParams);
         setData(response);
       } catch (err) {
         if (err instanceof ApiException) {
@@ -149,21 +162,7 @@ const MediaUserList = () => {
     if (is_authenticated) {
       fetchUserMedia();
     }
-  }, [page, searchQuery, is_authenticated]);
-
-  const handleSearch = (query: string, filters: SearchFilters) => {
-    const params = new URLSearchParams();
-    
-    if (query) {
-      params.set('q', query);
-    }
-    
-    // Reset to page 1 when searching
-    params.set('page', '1');
-    
-    // Use navigate instead of setSearchParams to avoid full refresh
-    navigate(`?${params.toString()}`, { replace: true });
-  };
+  }, [page, searchQuery, is_authenticated, searchSettings]);
 
   if (is_loading) {
     return <Loading fullScreen />;
@@ -196,6 +195,9 @@ const MediaUserList = () => {
             onChange={handleSearch}
             placeholder='Search your library (e.g. "Dexter" or title:"Breaking Bad" status:watching)'
             context="library"
+            onAutocomplete={mediaUserService.autocomplete}
+            settings={searchSettings}
+            onSettingsChange={handleSettingsChange}
           />
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <p className="text-muted-foreground">Your library is empty</p>
@@ -227,6 +229,9 @@ const MediaUserList = () => {
           onChange={handleSearch}
           placeholder='Search your library (e.g. "Dexter" or title:"Breaking Bad" status:watching)'
           context="library"
+          onAutocomplete={mediaUserService.autocomplete}
+          settings={searchSettings}
+          onSettingsChange={handleSettingsChange}
         />
 
         {/* Media grid */}
@@ -237,20 +242,20 @@ const MediaUserList = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {data.total_pages > 1 && (
           <Pagination>
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  to={`?page=${page - 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                  to={getPaginationUrl(page-1)}
                   className={page === 1 ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
               
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+              {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((pageNum) => (
                 <PaginationItem key={pageNum}>
                   <PaginationLink
-                    to={`?page=${pageNum}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                    to={getPaginationUrl(pageNum)}
                     isActive={pageNum === page}
                   >
                     {pageNum}
@@ -260,8 +265,8 @@ const MediaUserList = () => {
               
               <PaginationItem>
                 <PaginationNext
-                  to={`?page=${page + 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
-                  className={page === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  to={getPaginationUrl(page+1)}
+                  className={page === data.total_pages ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
             </PaginationContent>

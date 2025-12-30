@@ -65,6 +65,11 @@ export interface UpdateCharacterResponse {
   character: Character;
 }
 
+export interface AutocompleteSuggestion {
+  value: string;
+  count?: number;
+}
+
 export const characterService = {
   // Get all characters with pagination and search
   getAll: async (
@@ -141,6 +146,23 @@ export const characterService = {
   // Get all media for a character
   getMedia: async (characterId: number): Promise<CharacterMediaListResponse> => {
     const response = await api(`/api/characters/${characterId}/media`);
+    return response.json();
+  },
+
+  // Autocomplete search
+  autocomplete: async (
+    key: string,
+    query: string,
+    context: string
+  ): Promise<AutocompleteSuggestion[]> => {
+    const params = new URLSearchParams({
+      key,
+      query,
+      context,
+      limit: '5'
+    });
+
+    const response = await api(`/api/characters/autocomplete?${params.toString()}`);
     return response.json();
   },
 };

@@ -1,4 +1,4 @@
-import { Navigate, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +10,7 @@ import { characterService, ApiException } from "@/api";
 import type { CharacterListResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { User } from "lucide-react";
-import { parseSearchQuery, filtersToQueryParams } from "@/lib/utils";
-import type { SearchFilters } from "@/lib/utils";
+import { parseSearchQuery, filtersToQueryParams, queryParamsToSearchQuery } from "@/lib/utils";
 
 import {
   Pagination,
@@ -21,6 +20,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useSearchNavigation } from "@/hooks/useSearchNavigation";
 
 // Component to handle individual character card with image fetching
 const CharacterCard = ({ character }: { character: any }) => {
@@ -73,18 +73,35 @@ const CharacterCard = ({ character }: { character: any }) => {
 
 const CharacterList = () => {
   const { is_authenticated, is_loading } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const { handleSearch, searchParams } = useSearchNavigation();
   const page = parseInt(searchParams.get('page') || '1');
-  const searchQuery = searchParams.get('q') || '';
+  const searchQuery = queryParamsToSearchQuery(searchParams);
   
   const [data, setData] = useState<CharacterListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Read from localStorage with defaults
+  const [searchSettings, setSearchSettings] = useState<{ sort?: string; order?: 'asc' | 'desc' }>(() => {
+    const saved = localStorage.getItem('characterSearchSettings');
+    return saved ? JSON.parse(saved) : { sort: 'created_at', order: 'desc' };
+  });
+
+  // Save to localStorage when settings change
+  const handleSettingsChange = (newSettings: { sort?: string; order?: 'asc' | 'desc' }) => {
+    setSearchSettings(newSettings);
+    localStorage.setItem('characterSearchSettings', JSON.stringify(newSettings));
+  };
+
   // scroll restoration
-  const contentReady = !loading && !error && data !== null;
-  useScrollRestoration(contentReady);
+  useScrollRestoration(!loading && !error && data !== null);
+
+  // for pagination
+  const getPaginationUrl = (newPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    return `?${params.toString()}`;
+  };
 
   useEffect(() => {
     const fetchCharacters = async () => {
@@ -96,7 +113,10 @@ const CharacterList = () => {
         
         if (searchQuery) {
           const filters = parseSearchQuery(searchQuery, 'character'); // Add context here
-          filterParams = filtersToQueryParams(filters);
+          filterParams = filtersToQueryParams(filters, searchSettings);
+        } else {
+          // Even without search query, include sort/order
+          filterParams = filtersToQueryParams({}, searchSettings);
         }
         
         const response = await characterService.getAll(page, filterParams);
@@ -115,21 +135,7 @@ const CharacterList = () => {
     if (is_authenticated) {
       fetchCharacters();
     }
-  }, [page, searchQuery, is_authenticated]);
-
-  const handleSearch = (query: string, filters: SearchFilters) => {
-    const params = new URLSearchParams();
-    
-    if (query) {
-      params.set('q', query);
-    }
-    
-    // Reset to page 1 when searching
-    params.set('page', '1');
-    
-    // Use navigate instead of setSearchParams to avoid full refresh
-    navigate(`?${params.toString()}`, { replace: true });
-  };
+  }, [page, searchQuery, is_authenticated, searchSettings]);
 
   if (is_loading) {
     return <Loading fullScreen />;
@@ -162,6 +168,10 @@ const CharacterList = () => {
             value={searchQuery}
             onChange={handleSearch}
             placeholder='Search characters (e.g. name:"Naruto" tag:Protagonist)'
+            context="character"
+            onAutocomplete={characterService.autocomplete}
+            settings={searchSettings}
+            onSettingsChange={handleSettingsChange}
           />
 
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -194,6 +204,9 @@ const CharacterList = () => {
           onChange={handleSearch}
           placeholder='Search (e.g. "Dexter" or name:"Dexter Morgan" media:Dexter)'
           context="character"
+          onAutocomplete={characterService.autocomplete}
+          settings={searchSettings}
+          onSettingsChange={handleSettingsChange}
         />
 
         {/* Characters grid */}
@@ -209,7 +222,7 @@ const CharacterList = () => {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  to={`?page=${page - 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                  to={getPaginationUrl(page-1)}
                   className={page === 1 ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
@@ -217,7 +230,7 @@ const CharacterList = () => {
               {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((pageNum) => (
                 <PaginationItem key={pageNum}>
                   <PaginationLink
-                    to={`?page=${pageNum}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                    to={getPaginationUrl(pageNum)}
                     isActive={pageNum === page}
                   >
                     {pageNum}
@@ -227,7 +240,7 @@ const CharacterList = () => {
               
               <PaginationItem>
                 <PaginationNext
-                  to={`?page=${page + 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                  to={getPaginationUrl(page+1)}
                   className={page === data.total_pages ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>

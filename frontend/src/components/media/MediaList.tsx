@@ -1,4 +1,4 @@
-import { Navigate, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,8 +11,7 @@ import type { PaginatedResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { Film } from "lucide-react";
 import SearchBar from "../common/Searchbar";
-import { parseSearchQuery, filtersToQueryParams } from "@/lib/utils";
-import type { SearchFilters } from "@/lib/utils";
+import { parseSearchQuery, filtersToQueryParams, queryParamsToSearchQuery } from "@/lib/utils";
 
 import {
   Pagination,
@@ -22,6 +21,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useSearchNavigation } from "@/hooks/useSearchNavigation";
 
 // Component to handle individual media card with image fetching
 const MediaCard = ({ media }: { media: any }) => {
@@ -82,18 +82,35 @@ const MediaCard = ({ media }: { media: any }) => {
 
 const MediaList = () => {
   const { is_authenticated, is_loading } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const { handleSearch, searchParams } = useSearchNavigation();
   const page = parseInt(searchParams.get('page') || '1');
-  const searchQuery = searchParams.get('q') || '';
+  const searchQuery = queryParamsToSearchQuery(searchParams);
   
   const [data, setData] = useState<PaginatedResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Read from localStorage with defaults
+  const [searchSettings, setSearchSettings] = useState<{ sort?: string; order?: 'asc' | 'desc' }>(() => {
+    const saved = localStorage.getItem('mediaSearchSettings');
+    return saved ? JSON.parse(saved) : { sort: 'created_at', order: 'desc' };
+  });
+
+  // Save to localStorage when settings change
+  const handleSettingsChange = (newSettings: { sort?: string; order?: 'asc' | 'desc' }) => {
+    setSearchSettings(newSettings);
+    localStorage.setItem('mediaSearchSettings', JSON.stringify(newSettings));
+  };
+
   // scroll restoration
-  const contentReady = !loading && !error && data !== null;
-  useScrollRestoration(contentReady);
+  useScrollRestoration(!loading && !error && data !== null);
+
+  // for pagination
+  const getPaginationUrl = (newPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    return `?${params.toString()}`;
+  };
 
   useEffect(() => {
     const fetchMedia = async () => {
@@ -105,7 +122,10 @@ const MediaList = () => {
         
         if (searchQuery) {
           const filters = parseSearchQuery(searchQuery);
-          filterParams = filtersToQueryParams(filters);
+          filterParams = filtersToQueryParams(filters, searchSettings);
+        } else {
+          // Even without search query, include sort/order
+          filterParams = filtersToQueryParams({}, searchSettings);
         }
         
         const response = await mediaService.getAll(page, filterParams);
@@ -124,21 +144,7 @@ const MediaList = () => {
     if (is_authenticated) {
       fetchMedia();
     }
-  }, [page, searchQuery, is_authenticated]);
-
-  const handleSearch = (query: string, filters: SearchFilters) => {
-    const params = new URLSearchParams();
-    
-    if (query) {
-      params.set('q', query);
-    }
-    
-    // Reset to page 1 when searching
-    params.set('page', '1');
-    
-    // Use navigate instead of setSearchParams to avoid full refresh
-    navigate(`?${params.toString()}`, { replace: true });
-  };
+  }, [page, searchQuery, is_authenticated, searchSettings]);
 
   if (is_loading) {
     return <Loading fullScreen />;
@@ -172,6 +178,9 @@ const MediaList = () => {
             onChange={handleSearch}
             placeholder='Search media (e.g. title:"Star Wars" tag:Action year:>2020)'
             context='media'
+            onAutocomplete={mediaService.autocomplete}
+            settings={searchSettings}
+            onSettingsChange={handleSettingsChange}
           />
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <p className="text-muted-foreground">No media found</p>
@@ -202,7 +211,10 @@ const MediaList = () => {
           value={searchQuery}
           onChange={handleSearch}
           placeholder='Search media (e.g. title:"Star Wars" tag:Action year:>2020)'
-          context='media'  
+          context='media'
+          onAutocomplete={mediaService.autocomplete}
+          settings={searchSettings}
+          onSettingsChange={handleSettingsChange}
         />
 
         {/* Media grid */}
@@ -218,7 +230,7 @@ const MediaList = () => {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  to={`?page=${page - 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                  to={getPaginationUrl(page-1)}
                   className={page === 1 ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
@@ -226,7 +238,7 @@ const MediaList = () => {
               {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((pageNum) => (
                 <PaginationItem key={pageNum}>
                   <PaginationLink
-                    to={`?page=${pageNum}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                    to={getPaginationUrl(pageNum)}
                     isActive={pageNum === page}
                   >
                     {pageNum}
@@ -236,7 +248,7 @@ const MediaList = () => {
               
               <PaginationItem>
                 <PaginationNext
-                  to={`?page=${page + 1}${searchQuery ? `&q=${searchQuery}` : ''}`}
+                  to={getPaginationUrl(page+1)}
                   className={page === data.total_pages ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>

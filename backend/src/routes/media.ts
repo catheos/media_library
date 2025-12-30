@@ -49,8 +49,98 @@ router.route("/statuses")
     }
   })
 
+router.route("/autocomplete")
+  .get(async (req: Request, res: Response) => {
+    try {
+      const { key, query, context, limit = '5' } = req.query;
+
+      if (!key || !query) {
+        return res.status(400).json({ error: 'Missing required parameters: key, query' });
+      }
+
+      // Cap limit to requested or 20.
+      const requestedLimit = parseInt(limit as string);
+      const searchLimit = Math.min(requestedLimit, 20);
+
+      let results: { value: string; count?: number }[] = [];
+
+      switch (key) {
+        case 'title':
+          // Search media titles
+          const titles = await db('media')
+            .select('title as value')
+            .where('title', 'like', `%${query}%`)
+            .groupBy('title')
+            .limit(searchLimit)
+            .orderBy('title', 'asc');
+          
+          results = titles;
+          break;
+
+        case 'type':
+          // Search media types
+          const types = await db('media_types')
+            .select('media_types.name as value')
+            .count('media.id as count')
+            .leftJoin('media', 'media.type_id', 'media_types.id')
+            .where('media_types.name', 'like', `%${query}%`)
+            .groupBy('media_types.id', 'media_types.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = types.map((t: any) => ({
+            value: t.value,
+            count: parseInt(t.count as string)
+          }));
+          break;
+
+        case 'status':
+          // Search media statuses
+          const statuses = await db('media_status_types')
+            .select('media_status_types.name as value')
+            .count('media.id as count')
+            .leftJoin('media', 'media.status_id', 'media_status_types.id')
+            .where('media_status_types.name', 'like', `%${query}%`)
+            .groupBy('media_status_types.id', 'media_status_types.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = statuses.map((s: any) => ({
+            value: s.value,
+            count: parseInt(s.count as string)
+          }));
+          break;
+
+        case 'tag':
+          // Search tags
+          const tags = await db('tags')
+            .select('tags.name as value')
+            .count('media_tags.media_id as count')
+            .leftJoin('media_tags', 'media_tags.tag_id', 'tags.id')
+            .where('tags.name', 'like', `%${query}%`)
+            .groupBy('tags.id', 'tags.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = tags.map((t: any) => ({
+            value: t.value,
+            count: parseInt(t.count as string)
+          }));
+          break;
+
+        default:
+          // For unknown keys, return empty results
+          results = [];
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error('Autocomplete error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
 router.route("/")
-  // GET all media with pagination
   .get(async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
@@ -59,12 +149,20 @@ router.route("/")
 
       // Extract search filters from query params
       const { 
-        title, 
+        title,
+        exclude_title,
         year, 
         year_gt, 
-        year_lt, 
-        type, 
-        status 
+        year_lt,
+        exclude_year,
+        exclude_year_gt,
+        exclude_year_lt,
+        type,
+        exclude_type,
+        status,
+        exclude_status,
+        sort,
+        order
       } = req.query;
 
       // Build base query
@@ -73,11 +171,33 @@ router.route("/")
         .join('media_status_types', 'media.status_id', 'media_status_types.id')
         .join('user', 'media.created_by', 'user.id');
 
-      // Apply filters
+      // ----- Title Filters (OR logic for inclusion) ----- //
       if (title) {
-        query = query.where('media.title', 'like', `%${title}%`);
+        const titles = (title as string).split(',');
+        if (titles.length === 1) {
+          query = query.where('media.title', 'like', `%${titles[0]}%`);
+        } else {
+          query = query.where(function(this: any) {
+            titles.forEach((t, index) => {
+              if (index === 0) {
+                this.where('media.title', 'like', `%${t}%`);
+              } else {
+                this.orWhere('media.title', 'like', `%${t}%`);
+              }
+            });
+          });
+        };
+      };
+
+      // Title Exclusions (AND logic - exclude all)
+      if (exclude_title) {
+        const excludeTitles = (exclude_title as string).split(',');
+        excludeTitles.forEach(t => {
+          query = query.whereNot('media.title', 'like', `%${t}%`);
+        });
       }
 
+      // ----- Year Filters ----- //
       if (year) {
         query = query.where('media.release_year', parseInt(year as string));
       } else {
@@ -89,12 +209,47 @@ router.route("/")
         }
       }
 
-      if (type) {
-        query = query.where('media_types.name', type as string);
+      // Year Exclusions
+      if (exclude_year) {
+        query = query.whereNot('media.release_year', parseInt(exclude_year as string));
+      }
+      if (exclude_year_gt) {
+        query = query.whereNot('media.release_year', '>', parseInt(exclude_year_gt as string));
+      }
+      if (exclude_year_lt) {
+        query = query.whereNot('media.release_year', '<', parseInt(exclude_year_lt as string));
       }
 
+      // ----- Type Filters (OR logic for inclusion) ----- //
+      if (type) {
+        const types = (type as string).split(',');
+        if (types.length === 1) {
+          query = query.where('media_types.name', types[0]);
+        } else {
+          query = query.whereIn('media_types.name', types);
+        }
+      }
+
+      // Type Exclusions (AND logic - exclude all)
+      if (exclude_type) {
+        const excludeTypes = (exclude_type as string).split(',');
+        query = query.whereNotIn('media_types.name', excludeTypes);
+      }
+
+      // ----- Status Filters (OR logic for inclusion) ----- //
       if (status) {
-        query = query.where('media_status_types.name', status as string);
+        const statuses = (status as string).split(',');
+        if (statuses.length === 1) {
+          query = query.where('media_status_types.name', statuses[0]);
+        } else {
+          query = query.whereIn('media_status_types.name', statuses);
+        }
+      }
+
+      // Status Exclusions (AND logic - exclude all)
+      if (exclude_status) {
+        const excludeStatuses = (exclude_status as string).split(',');
+        query = query.whereNotIn('media_status_types.name', excludeStatuses);
       }
 
       // Get total count with filters applied
@@ -102,6 +257,22 @@ router.route("/")
       const [{ count }] = await countQuery.count('* as count');
       const total = parseInt(count as string);
       const total_pages = Math.ceil(total / page_size);
+
+      // Determine sort column and order
+      const sortColumn = (() => {
+        switch (sort as string) {
+          case 'title':
+            return 'media.title';
+          case 'release_year':
+            return 'media.release_year';
+          case 'created_at':
+            return 'media.created_at';
+          default:
+            return 'media.created_at';
+        }
+      })();
+
+      const sortOrder = (order === 'asc' || order === 'desc') ? order : 'desc';
 
       // Get paginated media with filters
       const media_list = await query
@@ -119,7 +290,8 @@ router.route("/")
         )
         .limit(page_size)
         .offset(offset)
-        .orderBy('media.id', 'desc');
+        .orderBy(sortColumn, sortOrder)
+        .orderBy('media.id', 'asc');
 
       // Format response
       const media = media_list.map((media: MediaDbRow) => ({
@@ -485,5 +657,27 @@ router.route("/:id/cover")
       res.status(500).json({ error: error.message });
     }
   });
+
+router.route("/:id/media-user/exists")
+  .get(async(req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+      const { id } = req.params;
+
+      const media_user = await db('user_media')
+        .where('user_media.user_id', user_id)
+        .where('user_media.media_id', id)
+        .select('id')
+        .first()
+      
+      if(media_user) {
+        res.status(200).json(media_user);
+      } else {
+        res.status(404).send();
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message })
+    }
+  })
 
 module.exports = router;

@@ -19,7 +19,7 @@ import Loading from "@/components/common/Loading";
 import ImageContainer from "@/components/common/ImageContainer";
 import ErrorCard from "@/components/common/ErrorCard";
 import { mediaService, mediaCharacterService, characterService, mediaUserService, ApiException } from "@/api";
-import type { Media, MediaCharacter, UserMedia } from "@/api";
+import type { Media, MediaCharacter } from "@/api";
 import { User, Film, BookmarkPlus, BookmarkCheck, Loader2 } from "lucide-react";
 import BackButton from "../common/BackButton";
 
@@ -42,12 +42,11 @@ const MediaView = () => {
   const [deleting, setDeleting] = useState(false);
   
   // Library state
-  const [userMediaEntry, setUserMediaEntry] = useState<UserMedia | null>(null);
   const [checkingLibrary, setCheckingLibrary] = useState(true);
   const [libraryActionLoading, setLibraryActionLoading] = useState(false);
+  const [isInLibrary, setIsInLibrary] = useState<{id: number} | false>(false);
 
   const isOwner = current_user?.id === media?.created_by.id;
-  const isInLibrary = userMediaEntry !== null;
 
   useEffect(() => {
     const fetchMedia = async () => {
@@ -80,10 +79,11 @@ const MediaView = () => {
       
       setCheckingLibrary(true);
       try {
-        const entry = await mediaUserService.checkInLibrary(parseInt(id));
-        setUserMediaEntry(entry);
+        const response = await mediaService.checkInLibrary(parseInt(id));
+        setIsInLibrary(response);
       } catch (err) {
         console.error('Failed to check library:', err);
+        setIsInLibrary(false);
       } finally {
         setCheckingLibrary(false);
       }
@@ -159,43 +159,36 @@ const MediaView = () => {
     };
   }, [id, is_authenticated]);
 
-  const handleAddToLibrary = async () => {
-    if (!id) return;
-    
-    setLibraryActionLoading(true);
-    try {
-      const response = await mediaUserService.create({
-        media_id: parseInt(id)
-      });
-      setUserMediaEntry(response.user_media);
-    } catch (err) {
-      if (err instanceof ApiException) {
-        setError(err.message);
-      } else {
-        setError('Failed to add to library');
-      }
-    } finally {
-      setLibraryActionLoading(false);
-    }
-  };
+  const toggleAddToLibrary = async () => {
+    if(!id) return;
 
-  const handleRemoveFromLibrary = async () => {
-    if (!userMediaEntry) return;
-    
     setLibraryActionLoading(true);
     try {
-      await mediaUserService.delete(userMediaEntry.id);
-      setUserMediaEntry(null);
+      if (!isInLibrary) {
+        const response = await mediaUserService.create({
+          media_id: parseInt(id)
+        });
+        setIsInLibrary({
+          id: response.user_media.id
+        });
+      } else {
+        await mediaUserService.delete(isInLibrary.id);
+        setIsInLibrary(false);
+      }
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
       } else {
-        setError('Failed to remove from library');
+        if (!isInLibrary) {
+          setError('Failed to add to library');
+        } else {
+          setError('Failed to remove from library');
+        }
       }
     } finally {
       setLibraryActionLoading(false);
     }
-  };
+  }
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -297,7 +290,7 @@ const MediaView = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={handleRemoveFromLibrary}
+                              onClick={toggleAddToLibrary}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               Remove
@@ -308,7 +301,7 @@ const MediaView = () => {
                     ) : (
                       <Button 
                         size="sm"
-                        onClick={handleAddToLibrary}
+                        onClick={toggleAddToLibrary}
                         disabled={libraryActionLoading}
                       >
                         {libraryActionLoading ? (

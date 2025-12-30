@@ -22,6 +22,9 @@ export interface UserMedia {
 export interface UserMediaListResponse {
   user_media: UserMedia[];
   total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface CreateUserMediaResponse {
@@ -53,20 +56,23 @@ export interface UpdateUserMediaRequest {
   review?: string;
 }
 
+export interface AutocompleteSuggestion {
+  value: string;
+  count?: number;
+}
+
 export const mediaUserService = {
   // Get all user's media entries
-  getAll: async (params?: Record<string, string | number>): Promise<UserMediaListResponse> => {
-    const queryParams = new URLSearchParams();
-    
-    // Convert all params to query string
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        queryParams.append(key, value.toString());
-      });
-    }
+  getAll: async (
+    page: number = 1,
+    filters?: Record<string, string>
+  ): Promise<UserMediaListResponse> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      ...filters
+    });
 
-    const url = `/api/media-user${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const response = await api(url);
+    const response = await api(`/api/media-user?${params.toString()}`);
     return response.json();
   },
 
@@ -116,17 +122,6 @@ export const mediaUserService = {
     return data;
   },
 
-  // Helper: Check if media is in user's library
-  checkInLibrary: async (media_id: number): Promise<UserMedia | null> => {
-    try {
-      const response = await mediaUserService.getAll({ limit: 100 });
-      const entry = response.user_media.find(um => um.media.id === media_id);
-      return entry || null;
-    } catch (error) {
-      return null;
-    }
-  },
-
   // Get all user media statuses
   getStatuses: async (): Promise<UserMediaStatus[]> => {
     const response = await api('/api/media-user/statuses');
@@ -136,6 +131,23 @@ export const mediaUserService = {
   // Get single user media status
   getSingleStatus: async (id: number): Promise<UserMediaStatus> => {
     const response = await api(`/api/media-user/statuses/${id}`);
+    return response.json();
+  },
+
+  // Autocomplete search
+  autocomplete: async (
+    key: string,
+    query: string,
+    context: string
+  ): Promise<AutocompleteSuggestion[]> => {
+    const params = new URLSearchParams({
+      key,
+      query,
+      context,
+      limit: '5'
+    });
+
+    const response = await api(`/api/media-user/autocomplete?${params.toString()}`);
     return response.json();
   },
 };

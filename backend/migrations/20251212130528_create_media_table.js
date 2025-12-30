@@ -11,6 +11,7 @@ exports.up = function(knex) {
     table.integer('status_id').unsigned().notNullable();
     table.text('description').nullable();
     table.integer("created_by").unsigned().notNullable();
+    table.timestamp('created_at').defaultTo(knex.fn.now());
 
     table.foreign('created_by')
       .references('id')

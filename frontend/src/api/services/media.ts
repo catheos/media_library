@@ -61,6 +61,15 @@ export interface DeleteMediaResponse {
   error?: string;
 }
 
+export interface CheckInLibraryResponse {
+  id: number;
+}
+
+export interface AutocompleteSuggestion {
+  value: string;
+  count?: number;
+}
+
 export const mediaService = {
   // Get all media
   getAll: async (
@@ -159,6 +168,31 @@ export const mediaService = {
   // Get all media status types
   getStatuses: async (): Promise<MediaStatus[]> => {
     const response = await api('/api/media/statuses');
+    return response.json();
+  },
+
+  // Helper: Check if media is in user's library
+  checkInLibrary: async (
+    id: number
+  ): Promise<CheckInLibraryResponse> => {
+    const response = await api(`/api/media/${id}/media-user/exists`);
+    return response.json();
+  },
+
+  // Autocomplete search
+  autocomplete: async (
+    key: string,
+    query: string,
+    context: string
+  ): Promise<AutocompleteSuggestion[]> => {
+    const params = new URLSearchParams({
+      key,
+      query,
+      context,
+      limit: '5'
+    });
+
+    const response = await api(`/api/media/autocomplete?${params.toString()}`);
     return response.json();
   },
 };

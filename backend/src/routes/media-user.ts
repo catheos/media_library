@@ -44,11 +44,14 @@ router.route("/")
   // GET all media-user entries for current user
   .get(async (req: Request, res: Response) => {
     try {
+      const page = parseInt(req.query.page as string) || 1;
+      const page_size = parseInt(process.env.MEDIA_USER_PAGE_SIZE || '20');
+      const offset = (page - 1) * page_size;
       const user_id = req.user!.user_id;
       
       // Extract search filters from query params
       const { 
-        // Media filters
+        // Media filters (inclusion)
         title,
         type,
         status,
@@ -56,13 +59,25 @@ router.route("/")
         year_gt,
         year_lt,
         
-        // User-specific filters
+        // Media filters (exclusion)
+        exclude_title,
+        exclude_type,
+        exclude_status,
+        exclude_year,
+        exclude_year_gt,
+        exclude_year_lt,
+        
+        // User-specific filters (inclusion)
         user_status,
         user_score,
         user_score_gt,
         user_score_lt,
         
-        limit 
+        // User-specific filters (exclusion)
+        exclude_user_status,
+        
+        sort,
+        order
       } = req.query;
 
       // Build base query
@@ -73,19 +88,65 @@ router.route("/")
         .join('media_status_types', 'media.status_id', 'media_status_types.id')
         .leftJoin('user_media_status_types', 'user_media.status_id', 'user_media_status_types.id');
 
-      // Apply Media filters
+      // ----- Title Filters (OR logic for inclusion) ----- //
       if (title) {
-        query = query.where('media.title', 'like', `%${title}%`);
+        const titles = (title as string).split(',');
+        if (titles.length === 1) {
+          query = query.where('media.title', 'like', `%${titles[0]}%`);
+        } else {
+          query = query.where(function(this: any) {
+            titles.forEach((t, index) => {
+              if (index === 0) {
+                this.where('media.title', 'like', `%${t}%`);
+              } else {
+                this.orWhere('media.title', 'like', `%${t}%`);
+              }
+            });
+          });
+        }
       }
 
+      // Title Exclusions (AND logic - exclude all)
+      if (exclude_title) {
+        const excludeTitles = (exclude_title as string).split(',');
+        excludeTitles.forEach(t => {
+          query = query.whereNot('media.title', 'like', `%${t}%`);
+        });
+      }
+
+      // ----- Type Filters (OR logic for inclusion) ----- //
       if (type) {
-        query = query.where('media_types.name', type as string);
+        const types = (type as string).split(',');
+        if (types.length === 1) {
+          query = query.where('media_types.name', types[0]);
+        } else {
+          query = query.whereIn('media_types.name', types);
+        }
       }
 
+      // Type Exclusions (AND logic - exclude all)
+      if (exclude_type) {
+        const excludeTypes = (exclude_type as string).split(',');
+        query = query.whereNotIn('media_types.name', excludeTypes);
+      }
+
+      // ----- Status Filters (OR logic for inclusion) ----- //
       if (status) {
-        query = query.where('media_status_types.name', status as string);
+        const statuses = (status as string).split(',');
+        if (statuses.length === 1) {
+          query = query.where('media_status_types.name', statuses[0]);
+        } else {
+          query = query.whereIn('media_status_types.name', statuses);
+        }
       }
 
+      // Status Exclusions (AND logic - exclude all)
+      if (exclude_status) {
+        const excludeStatuses = (exclude_status as string).split(',');
+        query = query.whereNotIn('media_status_types.name', excludeStatuses);
+      }
+
+      // ----- Year Filters ----- //
       if (year) {
         query = query.where('media.release_year', parseInt(year as string));
       } else {
@@ -97,11 +158,42 @@ router.route("/")
         }
       }
 
-      // Apply User-specific filters
-      if (user_status) {
-        query = query.where('user_media_status_types.name', user_status as string);
+      // Year Exclusions
+      if (exclude_year) {
+        query = query.whereNot('media.release_year', parseInt(exclude_year as string));
+      }
+      if (exclude_year_gt) {
+        query = query.whereNot('media.release_year', '>', parseInt(exclude_year_gt as string));
+      }
+      if (exclude_year_lt) {
+        query = query.whereNot('media.release_year', '<', parseInt(exclude_year_lt as string));
       }
 
+      // ----- User Status Filters (OR logic for inclusion) ----- //
+      if (user_status) {
+        const userStatuses = (user_status as string).split(',');
+        if (userStatuses.length === 1) {
+          query = query.where('user_media_status_types.name', userStatuses[0]);
+        } else {
+          query = query.whereIn('user_media_status_types.name', userStatuses);
+        }
+      }
+
+      // User Status Exclusions (AND logic - exclude all)
+      if (exclude_user_status) {
+        const excludeUserStatuses = (exclude_user_status as string).split(',');
+        query = query.where(function(this: any) {
+          excludeUserStatuses.forEach(status => {
+            // Exclude both the status AND null values
+            this.where(function(this: any) {
+              this.whereNot('user_media_status_types.name', status)
+                .orWhereNull('user_media_status_types.name');
+            });
+          });
+        });
+      }
+
+      // ----- User Score Filters ----- //
       if (user_score) {
         query = query.where('user_media.score', parseInt(user_score as string));
       } else {
@@ -117,9 +209,27 @@ router.route("/")
       const countQuery = query.clone();
       const [{ count }] = await countQuery.count('* as count');
       const total = parseInt(count as string);
+      const total_pages = Math.ceil(total / page_size);
 
-      // Optional limit; default to 20 if not specified
-      const maxResults = limit ? parseInt(limit as string, 10) : 20;
+      // Determine sort column and order
+      const sortColumn = (() => {
+        switch (sort as string) {
+          case 'title':
+            return 'media.title';
+          case 'release_year':
+            return 'media.release_year';
+          case 'user_score':
+            return 'user_media.score';
+          case 'progress_updated':
+            return 'user_media.progress_updated';
+          case 'created_at':
+            return 'user_media.created_at';
+          default:
+            return 'user_media.created_at';
+        }
+      })();
+
+      const sortOrder = (order === 'asc' || order === 'desc') ? order : 'desc';
 
       // Get entries with filters
       const user_media_entries = await query
@@ -143,11 +253,13 @@ router.route("/")
           'media_status_types.name as media_status_name',
           'media.description'
         )
-        .limit(maxResults)
-        .orderBy('user_media.created_at', 'desc');
+        .orderBy(sortColumn, sortOrder)
+        .orderBy('user_media.id', 'asc')
+        .limit(page_size)
+        .offset(offset)
 
       // Format response
-      const formatted = user_media_entries.map((entry: any) => ({
+      const user_media = user_media_entries.map((entry: any) => ({
         id: entry.id,
         user_id: entry.user_id,
         media: {
@@ -177,10 +289,12 @@ router.route("/")
       }));
 
       res.json({
-        user_media: formatted,
-        total
+        user_media,
+        total,
+        page,
+        page_size,
+        total_pages
       });
-
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -313,6 +427,133 @@ router.route("/")
       });
 
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+// Add this route BEFORE the "/:id" route
+router.route("/autocomplete")
+  .get(async (req: Request, res: Response) => {
+    try {
+      const user_id = req.user!.user_id;
+      const { key, query, limit = '5' } = req.query;
+
+      if (!key || !query) {
+        return res.status(400).json({ error: 'Missing required parameters: key, query' });
+      }
+
+      // Cap limit to prevent abuse (max 20 results)
+      const requestedLimit = parseInt(limit as string);
+      const searchLimit = Math.min(requestedLimit, 20);
+
+      let results: { value: string; count?: number }[] = [];
+
+      switch (key) {
+        case 'title':
+          // Search titles in user's library
+          const titles = await db('user_media')
+            .join('media', 'user_media.media_id', 'media.id')
+            .select('media.title as value')
+            .where('user_media.user_id', user_id)
+            .where('media.title', 'like', `%${query}%`)
+            .groupBy('media.title')
+            .limit(searchLimit)
+            .orderBy('media.title', 'asc');
+          
+          results = titles;
+          break;
+
+        case 'type':
+          // Search media types in user's library
+          const types = await db('media_types')
+            .select('media_types.name as value')
+            .count('user_media.id as count')
+            .join('media', 'media.type_id', 'media_types.id')
+            .join('user_media', function(this: any) {
+              this.on('user_media.media_id', '=', 'media.id')
+                  .andOn('user_media.user_id', '=', db.raw('?', [user_id]))
+            })
+            .where('media_types.name', 'like', `%${query}%`)
+            .groupBy('media_types.id', 'media_types.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = types.map((t: any) => ({
+            value: t.value,
+            count: parseInt(t.count as string)
+          }));
+          break;
+
+        case 'status':
+          // Search media statuses in user's library
+          const statuses = await db('media_status_types')
+            .select('media_status_types.name as value')
+            .count('user_media.id as count')
+            .join('media', 'media.status_id', 'media_status_types.id')
+            .join('user_media', function(this: any) {
+              this.on('user_media.media_id', '=', 'media.id')
+                  .andOn('user_media.user_id', '=', db.raw('?', [user_id]))
+            })
+            .where('media_status_types.name', 'like', `%${query}%`)
+            .groupBy('media_status_types.id', 'media_status_types.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = statuses.map((s: any) => ({
+            value: s.value,
+            count: parseInt(s.count as string)
+          }));
+          break;
+
+        case 'user_status':
+          // Search user's watch statuses
+          const userStatuses = await db('user_media_status_types')
+            .select('user_media_status_types.name as value')
+            .count('user_media.id as count')
+            .join('user_media', function(this: any) {
+              this.on('user_media.status_id', '=', 'user_media_status_types.id')
+                  .andOn('user_media.user_id', '=', db.raw('?', [user_id]))
+            })
+            .where('user_media_status_types.name', 'like', `%${query}%`)
+            .groupBy('user_media_status_types.id', 'user_media_status_types.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = userStatuses.map((s: any) => ({
+            value: s.value,
+            count: parseInt(s.count as string)
+          }));
+          break;
+
+        case 'tag':
+          // Search tags for media in user's library
+          const tags = await db('tags')
+            .select('tags.name as value')
+            .count('user_media.id as count')
+            .join('media_tags', 'media_tags.tag_id', 'tags.id')
+            .join('user_media', function(this: any) {
+              this.on('user_media.media_id', '=', 'media_tags.media_id')
+                  .andOn('user_media.user_id', '=', db.raw('?', [user_id]))
+            })
+            .where('tags.name', 'like', `%${query}%`)
+            .groupBy('tags.id', 'tags.name')
+            .limit(searchLimit)
+            .orderBy('count', 'desc');
+          
+          results = tags.map((t: any) => ({
+            value: t.value,
+            count: parseInt(t.count as string)
+          }));
+          break;
+
+        default:
+          // For unknown keys or numeric fields (year, score, user_score), return empty
+          results = [];
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error('Autocomplete error:', error);
       res.status(500).json({ error: error.message });
     }
   });
