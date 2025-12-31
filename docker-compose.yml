@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:11
+    container_name: media_library_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: SecureRootPassword123!
+      MYSQL_DATABASE: media_library_db
+      MYSQL_USER: media_library
+      MYSQL_PASSWORD: YourUserPassword123!
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - media_library_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_HOST: http://SERVER_IP_HERE:3000
+    container_name: media_library_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env.docker
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "3000:3000"
+    networks:
+      - media_library_network
+
+volumes:
+  db_data:
+  uploads:
+
+networks:
+  media_library_network:
