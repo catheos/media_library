@@ -14,6 +14,7 @@ import { characterService, ApiException } from "@/api";
 import type { Character } from "@/api";
 import MDEditor from '@uiw/react-md-editor';
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const CharacterEdit = () => {
   const { id } = useParams();
@@ -35,6 +36,12 @@ const CharacterEdit = () => {
   const [success, setSuccess] = useState('');
 
   const isOwner = current_user?.id === character?.created_by?.id;
+
+  // Set title
+  useTabTitle((character?.name)
+    ? `Edit | ${character?.name} | Characters`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchData = async () => {

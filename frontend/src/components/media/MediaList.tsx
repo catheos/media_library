@@ -22,6 +22,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useSearchNavigation } from "@/hooks/useSearchNavigation";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 // Component to handle individual media card with image fetching
 const MediaCard = ({ media }: { media: any }) => {
@@ -101,6 +102,9 @@ const MediaList = () => {
     setSearchSettings(newSettings);
     localStorage.setItem('mediaSearchSettings', JSON.stringify(newSettings));
   };
+
+  // Set title
+  useTabTitle('Media');
 
   // scroll restoration
   useScrollRestoration(!loading && !error && data !== null);

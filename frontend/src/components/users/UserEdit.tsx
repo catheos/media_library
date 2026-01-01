@@ -12,6 +12,7 @@ import FormAlerts from "@/components/common/FormAlerts";
 import { userService, ApiException } from "@/api";
 import type { User } from "@/api";
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const UserEdit = () => {
   const { id } = useParams();
@@ -30,6 +31,12 @@ const UserEdit = () => {
   const [success, setSuccess] = useState('');
 
   const isOwnProfile = current_user?.id === parseInt(id || '0');
+
+  // Set title
+  useTabTitle((user?.username)
+    ? `Edit | ${user?.username} | Users`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchUser = async () => {

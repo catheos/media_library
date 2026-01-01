@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import FormAlerts from '@/components/common/FormAlerts';
+import { useTabTitle } from '@/hooks/useTabTitle';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +19,8 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+
+  useTabTitle('Register')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({

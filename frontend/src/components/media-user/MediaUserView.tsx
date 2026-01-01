@@ -22,6 +22,7 @@ import BackButton from "@/components/common/BackButton";
 import { mediaService, mediaUserService, ApiException } from "@/api";
 import type { UserMedia } from "@/api";
 import { Film, Star, ExternalLink, Calendar, TrendingUp, Award } from "lucide-react";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const MediaUserView = () => {
   const { id } = useParams();
@@ -34,6 +35,12 @@ const MediaUserView = () => {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+
+  // Set title
+  useTabTitle((userMedia?.media.title)
+    ? `${userMedia?.media.title} | Media | Library`
+    : 'Loading...'
+  );
 
   // Fetch user media entry
   useEffect(() => {

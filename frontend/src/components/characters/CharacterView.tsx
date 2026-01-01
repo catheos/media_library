@@ -22,6 +22,7 @@ import { characterService, ApiException } from "@/api";
 import type { Character } from "@/api";
 import MDEditor from '@uiw/react-md-editor';
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const CharacterView = () => {
   const { id } = useParams();
@@ -35,6 +36,12 @@ const CharacterView = () => {
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = current_user?.id === character?.created_by?.id;
+
+  // Set title
+  useTabTitle((character?.name)
+    ? `${character?.name} | Character`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchCharacter = async () => {

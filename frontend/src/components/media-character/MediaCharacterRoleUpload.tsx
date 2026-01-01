@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import Loading from '@/components/common/Loading';
 import FormAlerts from '@/components/common/FormAlerts';
 import BackButton from '../common/BackButton';
+import { useTabTitle } from '@/hooks/useTabTitle';
 
 const MediaCharacterRoleUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -23,6 +24,9 @@ const MediaCharacterRoleUpload = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Set title
+  useTabTitle('Upload | Roles | Characters');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({

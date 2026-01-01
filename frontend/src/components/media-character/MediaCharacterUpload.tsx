@@ -25,6 +25,7 @@ import type { Character, MediaCharacterRole } from "@/api";
 import { Check, ChevronsUpDown, Loader2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const MediaCharacterUpload = () => {
   const [searchParams] = useSearchParams();
@@ -44,6 +45,9 @@ const MediaCharacterUpload = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Set title
+  useTabTitle('Upload | Characters');
 
   useEffect(() => {
     const fetchData = async () => {

@@ -21,6 +21,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useSearchNavigation } from "@/hooks/useSearchNavigation";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 // Component to handle individual character card with image fetching
 const CharacterCard = ({ character }: { character: any }) => {
@@ -92,6 +93,9 @@ const CharacterList = () => {
     setSearchSettings(newSettings);
     localStorage.setItem('characterSearchSettings', JSON.stringify(newSettings));
   };
+
+  // Set title
+  useTabTitle('Characters')
 
   // scroll restoration
   useScrollRestoration(!loading && !error && data !== null);

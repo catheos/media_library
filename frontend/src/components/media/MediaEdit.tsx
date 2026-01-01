@@ -15,6 +15,7 @@ import FormAlerts from "@/components/common/FormAlerts";
 import { mediaService, ApiException } from "@/api";
 import type { Media, MediaType, MediaStatus } from "@/api";
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const MediaEdit = () => {
   const { id } = useParams();
@@ -40,6 +41,12 @@ const MediaEdit = () => {
   const [success, setSuccess] = useState('');
 
   const isOwner = current_user?.id === media?.created_by.id;
+
+  // Set title
+  useTabTitle((media?.title)
+    ? `Edit | ${media?.title} | Media`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchData = async () => {

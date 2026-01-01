@@ -22,6 +22,7 @@ import { mediaService, mediaCharacterService, characterService, mediaUserService
 import type { Media, MediaCharacter } from "@/api";
 import { User, Film, BookmarkPlus, BookmarkCheck, Loader2 } from "lucide-react";
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 interface CharacterWithImage extends MediaCharacter {
   imageUrl?: string;
@@ -47,6 +48,12 @@ const MediaView = () => {
   const [isInLibrary, setIsInLibrary] = useState<{id: number} | false>(false);
 
   const isOwner = current_user?.id === media?.created_by.id;
+
+  // Set title
+  useTabTitle((media?.title)
+    ? `${media?.title} | Media`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchMedia = async () => {

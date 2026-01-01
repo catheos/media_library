@@ -14,6 +14,7 @@ import Loading from '@/components/common/Loading';
 import ImageUploadSection from '@/components/common/ImageUploadSection';
 import FormAlerts from '@/components/common/FormAlerts';
 import BackButton from '../common/BackButton';
+import { useTabTitle } from '@/hooks/useTabTitle';
 
 const MediaUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -32,6 +33,9 @@ const MediaUpload = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Set title
+  useTabTitle('Upload | Media');
 
   useEffect(() => {
     const fetchOptions = async () => {

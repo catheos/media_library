@@ -14,6 +14,7 @@ import FormAlerts from "@/components/common/FormAlerts";
 import BackButton from "@/components/common/BackButton";
 import { mediaUserService, ApiException } from "@/api";
 import type { UserMedia, UserMediaStatus } from "@/api";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const MediaUserEdit = () => {
   const { id } = useParams();
@@ -31,6 +32,12 @@ const MediaUserEdit = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Set title
+  useTabTitle((userMedia?.media.title)
+    ? `Edit | ${userMedia?.media.title} | Library`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchData = async () => {

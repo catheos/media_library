@@ -18,6 +18,7 @@ import Loading from "@/components/common/Loading";
 import ErrorCard from "@/components/common/ErrorCard";
 import { userService, ApiException } from "@/api";
 import type { User } from "@/api";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const UserView = () => {
   const { id } = useParams();
@@ -27,6 +28,12 @@ const UserView = () => {
   const [error, setError] = useState('');
 
   const isOwnProfile = current_user?.id === parseInt(id || '0');
+
+  // Set title
+  useTabTitle((user?.username)
+    ? `${user?.username} | Users`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -104,7 +111,7 @@ const UserView = () => {
           {isOwnProfile && (
             <div className="flex gap-2">
               <Button variant="outline" asChild>
-                <Link to={`/users/${id}/edit`}>Edit Profile</Link>
+                <Link to={`/users/${id}/edit`}>Edit</Link>
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>

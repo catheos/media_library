@@ -12,6 +12,7 @@ import ImageUploadSection from '@/components/common/ImageUploadSection';
 import MDEditor from '@uiw/react-md-editor';
 import FormAlerts from '../common/FormAlerts';
 import BackButton from '../common/BackButton';
+import { useTabTitle } from '@/hooks/useTabTitle';
 
 const CharacterUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -27,6 +28,9 @@ const CharacterUpload = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Set title
+  useTabTitle('Upload | Characters');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({

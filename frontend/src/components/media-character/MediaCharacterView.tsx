@@ -22,6 +22,7 @@ import { mediaCharacterService, characterService, mediaService, ApiException } f
 import type { MediaCharacter } from "@/api";
 import { User, Film } from "lucide-react";
 import BackButton from "../common/BackButton";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 const MediaCharacterView = () => {
   const { id } = useParams();
@@ -37,6 +38,12 @@ const MediaCharacterView = () => {
   const [error, setError] = useState('');
 
   const isOwner = current_user?.id === mediaCharacter?.created_by.id;
+
+  // Set title
+  useTabTitle((mediaCharacter?.media.title)
+    ? `${mediaCharacter?.media.title} | Character | Library`
+    : 'Loading...'
+  );
 
   useEffect(() => {
     const fetchMediaCharacter = async () => {

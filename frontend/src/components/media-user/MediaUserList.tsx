@@ -12,6 +12,7 @@ import type { UserMediaListResponse } from "@/api";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { Film, Star } from "lucide-react";
 import { parseSearchQuery, filtersToQueryParams, queryParamsToSearchQuery } from "@/lib/utils";
+import { useTabTitle } from "@/hooks/useTabTitle";
 
 import {
   Pagination,
@@ -119,6 +120,9 @@ const MediaUserList = () => {
     setSearchSettings(newSettings);
     localStorage.setItem('mediaUserSearchSettings', JSON.stringify(newSettings));
   };
+
+  // Set Title
+  useTabTitle('Library');
 
   // scroll restoration
   useScrollRestoration(!loading && !error && data !== null);
