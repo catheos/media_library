@@ -58,12 +58,10 @@ const MediaView = () => {
     : 'Loading...'
   );
 
-  const filteredCharacters = characters.filter(mc => 
+  const filteredCharacters = characters.filter((mc: MediaCharacter) => 
     mc.character.name.toLowerCase().includes(characterFilter.toLowerCase()) ||
     mc.role.name.toLowerCase().includes(characterFilter.toLowerCase())
   );
-
-  const uniqueRoles = Array.from(new Set(characters.map(mc => mc.role.name)));
 
   useEffect(() => {
     const fetchMedia = async () => {
