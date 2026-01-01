@@ -23,6 +23,8 @@ import type { Media, MediaCharacter } from "@/api";
 import { User, Film, BookmarkPlus, BookmarkCheck, Loader2 } from "lucide-react";
 import BackButton from "../common/BackButton";
 import { useTabTitle } from "@/hooks/useTabTitle";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface CharacterWithImage extends MediaCharacter {
   imageUrl?: string;
@@ -35,6 +37,7 @@ const MediaView = () => {
   const { current_user, is_authenticated, is_loading } = useAuth();
   const [media, setMedia] = useState<Media | null>(null);
   const [characters, setCharacters] = useState<CharacterWithImage[]>([]);
+  const [characterFilter, setCharacterFilter] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,13 @@ const MediaView = () => {
     ? `${media?.title} | Media`
     : 'Loading...'
   );
+
+  const filteredCharacters = characters.filter(mc => 
+    mc.character.name.toLowerCase().includes(characterFilter.toLowerCase()) ||
+    mc.role.name.toLowerCase().includes(characterFilter.toLowerCase())
+  );
+
+  const uniqueRoles = Array.from(new Set(characters.map(mc => mc.role.name)));
 
   useEffect(() => {
     const fetchMedia = async () => {
@@ -415,13 +425,27 @@ const MediaView = () => {
                   </div>
                 ) : characters.length === 0 ? (
                   <p className="text-muted-foreground text-center py-2">
-                    No characters added yet
-                    {isOwner && '. Click "Add Character" to get started.'}
+                    No characters added yet.
+                    {isOwner && (
+                      <>
+                        <br/>
+                        Click "Add Character" to get started.
+                      </>
+                    )}
                   </p>
                 ) : (
-                  <div className="relative">
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        value={characterFilter}
+                        onChange={(e) => setCharacterFilter(e.target.value)}
+                        placeholder="Filter characters..."
+                        className="pl-9"
+                      />
+                    </div>
                     <div className="flex gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                      {characters.map((mc) => (
+                      {filteredCharacters.map((mc) => (
                         <Link
                           key={mc.id}
                           to={`/media-character/${mc.id}`}
