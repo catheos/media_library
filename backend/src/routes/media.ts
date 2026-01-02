@@ -623,6 +623,9 @@ router.route("/:id/cover")
     const filename = (thumb) ? `${id}_thumb.webp` : `${id}.webp`;
     const image_path = path.join(process.cwd(), 'uploads', 'media', filename);
     
+    // Image caching for 1 hour
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    
     res.sendFile(image_path);
   })
   // PATCH media cover
