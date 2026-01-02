@@ -118,7 +118,7 @@ const MediaView = () => {
         const charactersWithImages = await Promise.all(
           data.characters.map(async (char) => {
             try {
-              const blob = await characterService.getSingleCover(char.character.id);
+              const blob = await characterService.getSingleCover(char.character.id, true);
               const url = URL.createObjectURL(blob);
               return { ...char, imageUrl: url, imageFailed: false };
             } catch (err) {

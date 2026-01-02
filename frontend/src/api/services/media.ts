@@ -91,8 +91,8 @@ export const mediaService = {
     return response.json();
   },
 
-  getSingleCover: async (id: number): Promise<Blob> => {
-    const response = await api(`/api/media/${id}/cover`);
+  getSingleCover: async (id: number, thumb?: boolean): Promise<Blob> => {
+    const response = await api(`/api/media/${id}/cover${(thumb) ? '?thumb=true' : ''}`);
     return response.blob();
   },
 

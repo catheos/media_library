@@ -20,6 +20,13 @@ const mediaDir = path.join(uploadDir, 'media');
 const charactersDir = path.join(uploadDir, 'characters');
 const tempDir = path.join(uploadDir, 'temp');
 
+// Overall image settings
+const MAX_SOURCE_DIMENSIONS = 8192; // Reject source images larger than this
+const MIN_SOURCE_DIMENSIONS = { width: 300, height: 450 }; // Reject source images smaller than this
+const FULL_SIZE = { width: 1000, height: 1500 }; // The size for downscale
+const THUMB_SIZE = { width: 300, height: 450 }; // The size for thumbnail
+const TARGET_RATIO = 2/3; // The ratio used to impose size on smaller images than max
+
 if (!fs.existsSync(mediaDir)) {
   fs.mkdirSync(mediaDir, { recursive: true });
 }
@@ -76,7 +83,6 @@ export const processImage = async (options: ProcessImageOptions): Promise<{ imag
     id,
     folder,
     generate_thumbnail = true,
-    thumbnail_size = { width: 300, height: 300 },
     quality = 85,
     thumbnail_quality = 80
   } = options;
@@ -89,6 +95,16 @@ export const processImage = async (options: ProcessImageOptions): Promise<{ imag
       throw new Error('Invalid image metadata');
     }
 
+    // Reject absurdly large source images
+    if (metadata.width > MAX_SOURCE_DIMENSIONS || metadata.height > MAX_SOURCE_DIMENSIONS) {
+      throw new Error(`Image dimensions too large. Max ${MAX_SOURCE_DIMENSIONS}px per side`);
+    }
+
+    // Reject absurdly small source images
+    if (metadata.width < MIN_SOURCE_DIMENSIONS.width || metadata.height < MIN_SOURCE_DIMENSIONS.height) {
+      throw new Error(`Image dimensions too small. Min ${MIN_SOURCE_DIMENSIONS.width}/${MIN_SOURCE_DIMENSIONS.height}px (w x h)`);
+    }
+
     const uploadFolder = path.join(uploadDir, folder);
     
     // Ensure folder exists
@@ -99,15 +115,36 @@ export const processImage = async (options: ProcessImageOptions): Promise<{ imag
     const imagePath = path.join(uploadFolder, `${id}.webp`);
     const thumbPath = generate_thumbnail ? path.join(uploadFolder, `${id}_thumb.webp`) : undefined;
 
-    // Save full-size image as WebP (optimized)
+    // Calculate target dimensions maintaining 2:3 ratio without upscaling
+    // Find the largest 2:3 size that fits within both the source image AND our max size
+    const maxWidth = Math.min(metadata.width, FULL_SIZE.width);
+    const maxHeight = Math.min(metadata.height, FULL_SIZE.height);
+    
+    // Determine which dimension is the constraint for 2:3 ratio
+    const constrainedByWidth = maxWidth / maxHeight < TARGET_RATIO;
+    
+    let targetWidth: number, targetHeight: number;
+    if (constrainedByWidth) {
+      targetWidth = maxWidth;
+      targetHeight = Math.round(maxWidth / TARGET_RATIO);
+    } else {
+      targetHeight = maxHeight;
+      targetWidth = Math.round(maxHeight * TARGET_RATIO);
+    }
+
+    // Save full-size image as WebP with enforced 2:3 ratio
     await sharp(temp_path)
+      .resize(targetWidth, targetHeight, {
+        fit: 'cover', // Crops to exact ratio
+        position: 'center'
+      })
       .webp({ quality })
       .toFile(imagePath);
 
     // Create thumbnail if requested
     if (generate_thumbnail && thumbPath) {
       await sharp(temp_path)
-        .resize(thumbnail_size.width, thumbnail_size.height, {
+        .resize(THUMB_SIZE.width, THUMB_SIZE.height, {
           fit: 'cover',
           position: 'center'
         })
@@ -130,3 +167,24 @@ export const processImage = async (options: ProcessImageOptions): Promise<{ imag
     throw error;
   }
 };
+
+// Delete images
+export const deleteImages = async(options: { folder: string; filenames: string[]; }): Promise<{ deleted: string[]; notFound: string[] }> => {
+  const { folder, filenames } = options;
+  const deleted = [];
+  const notFound = [];
+
+  for (const filename of filenames) {
+    const filePath = path.join(uploadDir, folder, filename);
+    try {
+      if(fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        deleted.push(filename);
+      };
+    } catch {
+      notFound.push(filename);
+    }
+  }
+
+  return { deleted, notFound }
+}

@@ -2,8 +2,8 @@ import express, { Request, Response } from "express";
 const router = express.Router();
 import db from "../db";
 import { requireBody } from "../middleware/validateBody";
-import { processImage, upload } from "../middleware/upload";
-import path = require("path");
+import { deleteImages, processImage, upload } from "../middleware/upload";
+import path from 'path';
 
 // Define types
 interface CharacterDbRow {
@@ -163,7 +163,7 @@ router.route("/")
             temp_path: image_file.path,
             id: character_id,
             folder: 'characters',
-            generate_thumbnail: false
+            generate_thumbnail: true
           });
         }
 
@@ -274,11 +274,16 @@ router.route("/:id")
   // PATCH single character by ID
   .patch(requireBody, async (req: Request, res: Response) => {
     try {
+      const user_id = req.user!.user_id;
       const { id } = req.params;
       const { name, details, wiki_url } = req.body;
 
       // Check if anything was provided to update
-      if (name === undefined && details === undefined && wiki_url === undefined) {
+      if (
+        name === undefined &&
+        details === undefined &&
+        wiki_url === undefined
+      ) {;
         res.status(400).json({ error: 'No fields to update' });
         return;
       }
@@ -288,7 +293,13 @@ router.route("/:id")
       if (!character) {
         res.status(404).json({ error: 'Character not found' });
         return;
-      }
+      };
+
+      // Check if user owns this media
+      if (character.created_by !== user_id) {
+        res.status(403).json({ error: 'You can only edit characters you created' });
+        return;
+      };
 
       const updates: any = {
         updated_at: db.fn.now()
@@ -346,11 +357,14 @@ router.route("/:id")
         return;
       }
 
-      // Check if character is used in any media
-      const usage_count = await db('media_character')
-        .where({ character_id: parseInt(id) })
-        .count('* as count')
-        .first();
+      // Remove cover and thumb
+      await deleteImages({
+        folder: 'characters',
+        filenames: [
+          `${id}.webp`,
+          `${id}_thumb.webp`
+        ]
+      });
 
       // Delete character
       await db('character').where({ id: parseInt(id) }).del();
@@ -420,6 +434,7 @@ router.route("/:id/cover")
   // GET media cover
   .get(async (req: Request, res: Response) => {
     const { id } = req.params;
+    const { thumb } = req.query;
     
     const character = await db('character').where({ id: parseInt(id) }).first();
     if (!character) {
@@ -427,7 +442,9 @@ router.route("/:id/cover")
       return;
     }
 
-    const image_path = path.join(process.cwd(), 'uploads', 'characters', `${id}.webp`);
+    const filename = (thumb) ? `${id}_thumb.webp` : `${id}.webp`;
+    const image_path = path.join(process.cwd(), 'uploads', 'characters', filename);
+    
     res.sendFile(image_path);
   })
   // PATCH media cover
@@ -458,7 +475,8 @@ router.route("/:id/cover")
       await processImage({
         temp_path: image_file.path,
         id: parseInt(id),
-        folder: 'characters'
+        folder: 'characters',
+        generate_thumbnail: true
       });
 
       res.json({ message: 'Cover updated successfully' });

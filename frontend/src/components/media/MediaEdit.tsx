@@ -72,7 +72,7 @@ const MediaEdit = () => {
         });
 
         try {
-          const blob = await mediaService.getSingleCover(parseInt(id!));
+          const blob = await mediaService.getSingleCover(parseInt(id!), true);
           const url = URL.createObjectURL(blob);
           setCurrentImageUrl(url);
           

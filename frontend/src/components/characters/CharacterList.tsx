@@ -31,7 +31,7 @@ const CharacterCard = ({ character }: { character: any }) => {
   useEffect(() => {
     const fetchImage = async () => {
       try {
-        const blob = await characterService.getSingleCover(character.id);
+        const blob = await characterService.getSingleCover(character.id, true);
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
       } catch (err) {

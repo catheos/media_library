@@ -86,7 +86,7 @@ const MediaCharacterUpload = () => {
         }
 
         try {
-          const blob = await characterService.getSingleCover(character.id);
+          const blob = await characterService.getSingleCover(character.id, true);
           const url = URL.createObjectURL(blob);
           setCharacterImages(prev => new Map(prev).set(character.id, url));
         } catch (err) {

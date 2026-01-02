@@ -1,6 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import path from "path";
-require('dotenv').config();
 
 const app: Express = express();
 const port = process.env.PORT || 3000;

@@ -32,7 +32,7 @@ const MediaCard = ({ media }: { media: any }) => {
   useEffect(() => {
     const fetchImage = async () => {
       try {
-        const blob = await mediaService.getSingleCover(media.id);
+        const blob = await mediaService.getSingleCover(media.id, true);
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
       } catch (err) {

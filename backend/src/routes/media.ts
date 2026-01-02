@@ -5,7 +5,7 @@ import { requireBody } from "../middleware/validateBody";
 import { upload } from "../middleware/upload";
 import { processImage } from "../middleware/upload";
 import path from 'path';
-import fs from 'fs';
+import { deleteImages } from "../middleware/upload";
 
 // Define types
 interface MediaDbRow {
@@ -466,20 +466,20 @@ router.route("/:id")
       ) {
         res.status(400).json({ error: 'No fields to update' });
         return;
-      }
+      };
 
       // Check if media exists
       const media = await db('media').where({ id: parseInt(id) }).first();
       if (!media) {
         res.status(404).json({ error: 'Media not found' });
         return;
-      }
+      };
 
       // Check if user owns this media
       if (media.created_by !== user_id) {
         res.status(403).json({ error: 'You can only edit media you created' });
         return;
-      }
+      };
 
       const updates: any = {};
 
@@ -590,11 +590,14 @@ router.route("/:id")
         return;
       }
 
-      // Remove cover file if exists
-      const image_path = path.join(process.cwd(), 'uploads', 'media', `${id}.webp`);
-      if (fs.existsSync(image_path)) {
-        fs.unlinkSync(image_path);
-      }
+      // Remove cover and thumb
+      await deleteImages({
+        folder: 'media',
+        filenames: [
+          `${id}.webp`,
+          `${id}_thumb.webp`
+        ]
+      });
 
       // Remove media record
       await db('media').where({ id: parseInt(id) }).del();
@@ -607,17 +610,19 @@ router.route("/:id")
   })
 
 router.route("/:id/cover")
-  // GET media cover
+  // get media cover
   .get(async (req: Request, res: Response) => {
     const { id } = req.params;
-    
+    const { thumb } = req.query;
+
     const media = await db('media').where({ id: parseInt(id) }).first();
     if (!media) {
-      res.status(404).json({ error: 'Media not found' });
-      return;
+      return res.status(404).json({ error: 'Media not found' });
     }
 
-    const image_path = path.join(process.cwd(), 'uploads', 'media', `${id}.webp`);
+    const filename = (thumb) ? `${id}_thumb.webp` : `${id}.webp`;
+    const image_path = path.join(process.cwd(), 'uploads', 'media', filename);
+    
     res.sendFile(image_path);
   })
   // PATCH media cover
