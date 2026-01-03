@@ -94,11 +94,13 @@ const MediaUpload = () => {
 
     if (!formData.title || !formData.type_id || !formData.status_id) {
       setError('Title, type, and status are required');
+      window.scrollTo(0, 0)
       return;
     }
 
     if (!image || !image[0]) {
       setError('Cover image is required');
+      window.scrollTo(0, 0)
       return;
     }
 
@@ -117,15 +119,18 @@ const MediaUpload = () => {
       );
 
       setSuccess('Media created successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         navigate(`/media/${response.media.id}`);
-      }, 2000);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
     } finally {
       setSubmitting(false);

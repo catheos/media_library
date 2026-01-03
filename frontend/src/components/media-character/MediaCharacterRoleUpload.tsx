@@ -42,6 +42,7 @@ const MediaCharacterRoleUpload = () => {
 
     if (!formData.name.trim()) {
       setError('Role name is required');
+      window.scrollTo(0, 0)
       return;
     }
 
@@ -53,6 +54,7 @@ const MediaCharacterRoleUpload = () => {
       );
 
       setSuccess('Role created successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         if (mediaId) {
@@ -60,12 +62,14 @@ const MediaCharacterRoleUpload = () => {
         } else {
           navigate(`/media-characters/roles/${response.role.id}`);
         }
-      }, 1500);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
       setSubmitting(false);
     }

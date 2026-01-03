@@ -144,7 +144,13 @@ router.route("/")
 
       // Validate required fields
       if (!name || name.trim() === '') {
-        res.status(400).json({ error: 'name is required' });
+        res.status(400).json({ error: 'name is required!' });
+        return;
+      }
+
+      // Ensure title length
+      if (name.trim().length<1 || name.trim().length>255) {
+        res.status(400).json({ error: 'name must be 1-255 characters!' });
         return;
       }
 
@@ -180,10 +186,10 @@ router.route("/")
           }
         });
 
-      } catch (imageError) {
+      } catch (err: any) {
         // Delete character entry if image processing fails
         await db('character').where({ id: character_id }).del();
-        throw new Error('Failed to process image');
+        throw new Error(err.message || 'Failed to process image');
       }
     } catch (error: any) {
       res.status(500).json({ error: error.message });

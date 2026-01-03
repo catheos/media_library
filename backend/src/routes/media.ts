@@ -333,7 +333,13 @@ router.route("/")
 
       // Validate required fields
       if (!title || !type_id || !status_id || !image_file) {
-        res.status(400).json({ error: 'title, type_id, status_id, and image file are required' });
+        res.status(400).json({ error: 'title, type_id, status_id, and image file are required!' });
+        return;
+      }
+
+      // Ensure title length
+      if (title.trim().length<3 || title.trim().length>255) {
+        res.status(400).json({ error: 'title must be 3-255 characters!' });
         return;
       }
 
@@ -353,7 +359,7 @@ router.route("/")
 
       // Create media
       const [media_id] = await db('media').insert({
-        title,
+        title: title.trim(),
         type_id,
         release_year: release_year || null,
         status_id,
@@ -375,7 +381,7 @@ router.route("/")
           message: 'Media created successfully',
           media: {
             id: media_id,
-            title,
+            title: title.trim(),
             type_id,
             release_year,
             status_id,
@@ -384,10 +390,10 @@ router.route("/")
           }
         });
 
-      } catch (imageError) {
+      } catch (err: any) {
         // delete media entry if image processing fails
         await db('media').where({ id: media_id }).del();
-        throw new Error('failed to process image');
+        throw new Error(err.message || 'Failed to process image');
       }
     } catch (error: any) {
       res.status(500).json({ error: error.message });

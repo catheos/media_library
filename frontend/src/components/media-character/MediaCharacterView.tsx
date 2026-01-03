@@ -196,10 +196,10 @@ const MediaCharacterView = () => {
           </CardHeader>
           
           <CardContent className="space-y-2">
-            <div>
+            <div className="w-full">
               <p className="text-sm text-muted-foreground">Role</p>
-              <Badge variant="secondary" className="text-base">
-                {mediaCharacter.role.name}
+              <Badge variant="secondary" className="text-base w-full">
+                <span className="truncate">{mediaCharacter.role.name}</span>
               </Badge>
             </div>
 
@@ -220,7 +220,7 @@ const MediaCharacterView = () => {
         {/* Side by Side Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Character Card */}
-          <Card>
+          <Card title={mediaCharacter.character.name}>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <User className="w-5 h-5" />
@@ -238,11 +238,11 @@ const MediaCharacterView = () => {
                   alt={mediaCharacter.character.name}
                   FallbackIcon={User}
                   aspectRatio="portrait"
-                  className="mb-2 group-hover:scale-101 transition-transform"
+                  className="break-words break-all mb-2 group-hover:scale-101 transition-transform"
                   iconSize="md"
                 />
               </Link>
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold truncate">
                 {mediaCharacter.character.name}
               </h2>
               <Button asChild className="w-full mt-2">
@@ -254,7 +254,7 @@ const MediaCharacterView = () => {
           </Card>
 
           {/* Media Card */}
-          <Card>
+          <Card title={mediaCharacter.media.title}>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Film className="w-5 h-5" />
@@ -272,11 +272,11 @@ const MediaCharacterView = () => {
                   alt={mediaCharacter.media.title}
                   FallbackIcon={Film}
                   aspectRatio="portrait"
-                  className="mb-2 group-hover:scale-101 transition-transform"
+                  className="break-words break-all mb-2 group-hover:scale-101 transition-transform"
                   iconSize="md"
                 />
               </Link>
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold truncate">
                 {mediaCharacter.media.title}
               </h2>
               <Button asChild className="w-full mt-2">

@@ -131,11 +131,13 @@ const MediaCharacterUpload = () => {
     
     if (!mediaId) {
       setError('Media ID is missing');
+      window.scrollTo(0, 0)
       return;
     }
     
     if (!selectedCharacterId || !selectedRoleId) {
       setError('Please select both a character and a role');
+      window.scrollTo(0, 0)
       return;
     }
     
@@ -149,15 +151,18 @@ const MediaCharacterUpload = () => {
       );
       
       setSuccess('Character added successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         navigate(`/media/${mediaId}`);
-      }, 1500);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred while adding the character');
+        window.scrollTo(0, 0)
       }
       setSubmitting(false);
     }
@@ -219,9 +224,11 @@ const MediaCharacterUpload = () => {
                       aria-expanded={openCharacterCombobox}
                       className="w-full justify-between"
                     >
-                      {selectedCharacterId
-                        ? characters.find((c) => c.id.toString() === selectedCharacterId)?.name
-                        : "Select character..."}
+                      <span className="truncate">
+                        {selectedCharacterId
+                          ? characters.find((c) => c.id.toString() === selectedCharacterId)?.name
+                          : "Select character..."}
+                      </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -254,7 +261,7 @@ const MediaCharacterUpload = () => {
                                   setOpenCharacterCombobox(false);
                                 }}
                               >
-                                <div className="flex items-center gap-3 flex-1">
+                                <div className="flex items-center gap-3 flex-1 overflow-hidden" title={character.name}>
                                   <div className="bg-white aspect-[3/4] w-8 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                                     {imageUrl ? (
                                       <img 
@@ -270,8 +277,8 @@ const MediaCharacterUpload = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="flex flex-col">
-                                    <span>{character.name}</span>
+                                  <div className="flex flex-col truncate">
+                                    <span className="truncate">{character.name}</span>
                                   </div>
                                 </div>
                                 <Check
@@ -292,8 +299,8 @@ const MediaCharacterUpload = () => {
 
               {/* Selected Character Preview */}
               {selectedCharacter && (
-                <div className="p-4 bg-muted rounded-md">
-                  <div className="flex items-start gap-4">
+                <div className="p-2 bg-muted rounded-md">
+                  <div className="flex items-start gap-2">
                     <div className="aspect-[3/4] w-16 rounded bg-background flex items-center justify-center overflow-hidden flex-shrink-0">
                       {characterImages.get(selectedCharacter.id) ? (
                         <img 
@@ -307,8 +314,8 @@ const MediaCharacterUpload = () => {
                         <Loading />
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <h4 className="font-semibold">{selectedCharacter.name}</h4>
+                    <div className="space-y-2 overflow-hidden">
+                      <h4 className="font-semibold truncate">{selectedCharacter.name}</h4>
                       <p className="text-sm text-muted-foreground">
                         Created by{' '}
                         <Link 
@@ -334,9 +341,11 @@ const MediaCharacterUpload = () => {
                       aria-expanded={openRoleCombobox}
                       className="w-full justify-between"
                     >
-                      {selectedRoleId
-                        ? roles.find((r) => r.id.toString() === selectedRoleId)?.name
-                        : "Select role..."}
+                      <span className="truncate">
+                        {selectedRoleId
+                          ? roles.find((r) => r.id.toString() === selectedRoleId)?.name
+                          : "Select role..."}
+                      </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -365,8 +374,9 @@ const MediaCharacterUpload = () => {
                                 setSelectedRoleId(selected ? selected.id.toString() : "");
                                 setOpenRoleCombobox(false);
                               }}
+                              title={role.name}
                             >
-                              {role.name}
+                              <span className="truncate">{role.name}</span>
                               <Check
                                 className={cn(
                                   "ml-auto",

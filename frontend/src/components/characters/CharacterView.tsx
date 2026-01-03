@@ -158,7 +158,7 @@ const CharacterView = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-3xl">{character.name}</CardTitle>
+                  <CardTitle title={character.name} className="text-3xl truncate">{character.name}</CardTitle>
                   {isOwner && (
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" asChild>
@@ -178,7 +178,7 @@ const CharacterView = () => {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete "{character.name}". This action cannot be undone.
+                              This will permanently delete <span className="font-bold break-words break-all">"{character.name}"</span>. This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -237,10 +237,6 @@ const CharacterView = () => {
                   <div data-color-mode="light">
                     <MDEditor.Markdown 
                       source={character.details} 
-                      style={{ 
-                        padding: '1rem',
-                        backgroundColor: 'transparent'
-                      }}
                     />
                   </div>
                 </CardContent>

@@ -85,8 +85,10 @@ const MediaEdit = () => {
       } catch (err) {
         if (err instanceof ApiException) {
           setError(err.message);
+          window.scrollTo(0, 0)
         } else {
           setError('An error occurred while loading the media');
+          window.scrollTo(0, 0)
         }
       } finally {
         setLoading(false);
@@ -125,6 +127,7 @@ const MediaEdit = () => {
 
   const handleImageError = (error: Error) => {
     setError(error.message || 'Failed to upload image');
+    window.scrollTo(0, 0)
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -159,6 +162,7 @@ const MediaEdit = () => {
       if (!hasDataChanges && !hasImageChange) {
         setError('No changes to save');
         setSaving(false);
+        window.scrollTo(0, 0)
         return;
       }
 
@@ -171,15 +175,18 @@ const MediaEdit = () => {
       }
 
       setSuccess('Media updated successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         navigate(`/media/${id}`);
-      }, 2000);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
     } finally {
       setSaving(false);

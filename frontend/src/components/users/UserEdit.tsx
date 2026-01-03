@@ -50,8 +50,10 @@ const UserEdit = () => {
       } catch (err) {
         if (err instanceof ApiException) {
           setError(err.message);
+          window.scrollTo(0, 0)
         } else {
           setError('An error occurred while loading the profile');
+          window.scrollTo(0, 0)
         }
       } finally {
         setLoading(false);
@@ -79,10 +81,12 @@ const UserEdit = () => {
     if (formData.newPassword) {
       if (formData.newPassword !== formData.confirmPassword) {
         setError('New passwords do not match');
+        window.scrollTo(0, 0)
         return;
       }
       if (!formData.currentPassword) {
         setError('Current password is required to change password');
+        window.scrollTo(0, 0)
         return;
       }
     }
@@ -114,6 +118,7 @@ const UserEdit = () => {
       // Don't send request if nothing changed
       if (Object.keys(body).length === 0) {
         setError('No changes to save');
+        window.scrollTo(0, 0)
         return;
       }
 
@@ -125,6 +130,7 @@ const UserEdit = () => {
       }
 
       setSuccess(data.message);
+      window.scrollTo(0, 0)
       
       // Clear password fields
       setFormData(prev => ({
@@ -137,12 +143,14 @@ const UserEdit = () => {
       // Redirect after 2 seconds
       setTimeout(() => {
         navigate(`/users/${id}`);
-      }, 2000);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
     } finally {
       setSaving(false);

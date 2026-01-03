@@ -62,6 +62,7 @@ const CharacterUpload = () => {
 
     if (!formData.name.trim()) {
       setError('Character name is required');
+      window.scrollTo(0, 0)
       return;
     }
 
@@ -78,6 +79,7 @@ const CharacterUpload = () => {
       );
 
       setSuccess('Character created successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         if (media_id) {
@@ -85,12 +87,14 @@ const CharacterUpload = () => {
         } else {
           navigate(`/characters/${response.character.id}`);
         }
-      }, 2000);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
     } finally {
       setSubmitting(false);

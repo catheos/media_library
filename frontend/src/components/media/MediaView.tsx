@@ -272,7 +272,7 @@ const MediaView = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
-                  <CardTitle className="text-3xl">{media.title}</CardTitle>
+                  <CardTitle title={media.title} className="text-3xl truncate">{media.title}</CardTitle>
                   <div className="flex gap-2">
                     {/* Library Button */}
                     {checkingLibrary ? (
@@ -299,7 +299,7 @@ const MediaView = () => {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Remove from Library?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will remove "{media.title}" from your library. Your progress and ratings will be deleted.
+                              This will remove <span className='break-words break-all font-bold'>"{media.title}"</span> from your library. Your progress and ratings will be deleted.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -348,7 +348,7 @@ const MediaView = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will permanently delete "{media.title}". This action cannot be undone.
+                                This will permanently delete <span className='font-bold break-words break-all'>"{media.title}"</span>. This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -448,6 +448,7 @@ const MediaView = () => {
                           key={mc.id}
                           to={`/media-character/${mc.id}`}
                           className="flex-shrink-0 group block"
+                          title={mc.character.name}
                         >
                           <div className="w-32 rounded-lg bg-muted/50 p-2 transition-transform group-hover:scale-105">
                             <div className="space-y-2">
@@ -464,8 +465,10 @@ const MediaView = () => {
                                 <p className="font-medium text-sm truncate" title={mc.character.name}>
                                   {mc.character.name}
                                 </p>
-                                <Badge variant="secondary" className="text-xs">
-                                  {mc.role.name}
+                                <Badge variant="secondary" className="text-xs overflow-hidden w-full">
+                                  <span className="truncate">
+                                    {mc.role.name}
+                                  </span>
                                 </Badge>
                               </div>
                             </div>

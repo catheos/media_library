@@ -61,8 +61,10 @@ const MediaUserEdit = () => {
       } catch (err) {
         if (err instanceof ApiException) {
           setError(err.message);
+          window.scrollTo(0, 0)
         } else {
           setError('An error occurred while loading your library entry');
+          window.scrollTo(0, 0)
         }
       } finally {
         setLoading(false);
@@ -112,6 +114,7 @@ const MediaUserEdit = () => {
         if (scoreValue !== null && (scoreValue < 0 || scoreValue > 10)) {
           setError('Score must be between 0 and 10');
           setSaving(false);
+          window.scrollTo(0, 0)
           return;
         }
         body.score = scoreValue;
@@ -124,21 +127,25 @@ const MediaUserEdit = () => {
       if (Object.keys(body).length === 0) {
         setError('No changes to save');
         setSaving(false);
+        window.scrollTo(0, 0)
         return;
       }
 
       await mediaUserService.update(parseInt(id!), body);
 
       setSuccess('Progress updated successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         navigate(`/media-user/${id}`);
-      }, 2000);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
     } finally {
       setSaving(false);

@@ -81,13 +81,13 @@ router.route("/roles")
       }
 
       // Validate name length
-      if (name.length<3) {
-        return res.status(400).json({ error: 'name must be 3 or more characters!'})
+      if (name.trim().length<3 || name.trim().length>64) {
+        return res.status(400).json({ error: 'name must be 3-64 characters!'})
       }
 
       // Check if role exists
       const existing_role = await db('character_roles')
-        .where({ name })
+        .where({ name: name.trim() })
         .first();
 
       if (existing_role) {
@@ -97,7 +97,7 @@ router.route("/roles")
 
       // Insert new role
       const [role_id] = await db('character_roles').insert({
-        name: name,
+        name: name.trim(),
         created_by: user_id
       });
 

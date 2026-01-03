@@ -67,13 +67,14 @@ const CharacterEdit = () => {
           setImage([file]);
           setOriginalImage([file]);
         } catch (err) {
-          console.error('Failed to load current image');
+          console.error('Failed to load current cover');
         }
       } catch (err) {
         if (err instanceof ApiException) {
           setError(err.message);
         } else {
           setError('An error occurred while loading the character');
+          window.scrollTo(0, 0)
         }
       } finally {
         setLoading(false);
@@ -140,6 +141,7 @@ const CharacterEdit = () => {
       if (!hasDataChanges && !hasImageChange) {
         setError('No changes to save');
         setSaving(false);
+        window.scrollTo(0, 0)
         return;
       }
 
@@ -152,15 +154,18 @@ const CharacterEdit = () => {
       }
 
       setSuccess('Character updated successfully!');
+      window.scrollTo(0, 0)
       
       setTimeout(() => {
         navigate(`/characters/${id}`);
-      }, 2000);
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
+        window.scrollTo(0, 0)
       } else {
         setError('An error occurred. Please try again.');
+        window.scrollTo(0, 0)
       }
     } finally {
       setSaving(false);

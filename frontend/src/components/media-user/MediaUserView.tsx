@@ -156,7 +156,7 @@ const MediaUserView = () => {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Remove from Library?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will remove "{userMedia.media.title}" from your library. 
+                        This will remove <span className='font-bold break-words break-all'>"{userMedia.media.title}"</span> from your library. 
                         Your progress, score, and review will be deleted.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -298,7 +298,7 @@ const MediaUserView = () => {
           <div className="md:col-span-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-3xl">{userMedia.media.title}</CardTitle>
+                <CardTitle className="text-3xl break-words break-all truncate">{userMedia.media.title}</CardTitle>
                 <div className="flex gap-2 items-center flex-wrap mt-2">
                   {userMedia.media.release_year && (
                     <span className="text-muted-foreground font-medium">
