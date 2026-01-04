@@ -4,6 +4,9 @@ FROM node:20-alpine AS frontend-builder
 ARG VITE_API_HOST=http://localhost:3000
 ENV VITE_API_HOST=${VITE_API_HOST}
 
+ARG VITE_THETVDB_API_KEY
+ENV VITE_THETVDB_API_KEY=${VITE_THETVDB_API_KEY}
+
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -42,4 +45,4 @@ USER nodejs
 EXPOSE 3000
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "npm run migrate && npm start"]
+CMD ["sh", "-c", "npm run migrate && npm run seed && npm start"]

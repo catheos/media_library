@@ -37,6 +37,9 @@ Self-hosted media library that lets you organize, track, and manage all your per
    - `DB_PASS` - Set a secure database password
    - `JWT_SECRET` - Generate with: `openssl rand -base64 32`
 
+   Update these values in `frontend/.env`:
+   - `VITE_THETVDB_API_KEY` - Set your API key if you want TheTVDB functionality
+
 3. **Update docker-compose.yml**
    
    Edit `docker-compose.yml` and set:
@@ -45,7 +48,7 @@ Self-hosted media library that lets you organize, track, and manage all your per
 
 4. **Build and deploy**
 ```bash
-   ./build.sh
+   bash ./build.sh
    docker-compose up -d
 ```
 
