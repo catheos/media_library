@@ -29,7 +29,6 @@ const CharacterUpload = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Set title
   useTabTitle('Upload | Characters');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +61,7 @@ const CharacterUpload = () => {
 
     if (!formData.name.trim()) {
       setError('Character name is required');
-      window.scrollTo(0, 0)
+      window.scrollTo(0, 0);
       return;
     }
 
@@ -79,7 +78,7 @@ const CharacterUpload = () => {
       );
 
       setSuccess('Character created successfully!');
-      window.scrollTo(0, 0)
+      window.scrollTo(0, 0);
       
       setTimeout(() => {
         if (media_id) {
@@ -91,10 +90,10 @@ const CharacterUpload = () => {
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
-        window.scrollTo(0, 0)
+        window.scrollTo(0, 0);
       } else {
         setError('An error occurred. Please try again.');
-        window.scrollTo(0, 0)
+        window.scrollTo(0, 0);
       }
     } finally {
       setSubmitting(false);
@@ -111,12 +110,8 @@ const CharacterUpload = () => {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <BackButton
-        to="/characters"
-        label="Back to Characters"
-      />
+      <BackButton to="/characters" label="Back to Characters" />
 
-      {/* Navigation between upload types */}
       <div className="flex gap-2">
         <Button 
           variant="outline" 
@@ -137,16 +132,19 @@ const CharacterUpload = () => {
       <div className="space-y-4">
         <Card className="rounded-tl-none rounded-tr-none">
           <CardHeader>
-            <CardTitle className="text-3xl">Create Character</CardTitle>
-            <CardDescription>
-              Add a new character to the database
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-3xl">Create Character</CardTitle>
+                <CardDescription>
+                  Add a new character to the database
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <FormAlerts error={error} success={success} />
 
-              {/* Name */}
               <div className="space-y-2">
                 <Label htmlFor="name">Character Name *</Label>
                 <Input
@@ -164,7 +162,6 @@ const CharacterUpload = () => {
                 </p>
               </div>
 
-              {/* Wiki URL */}
               <div className="space-y-2">
                 <Label htmlFor="wiki_url">Wiki URL</Label>
                 <Input
@@ -180,7 +177,6 @@ const CharacterUpload = () => {
                 </p>
               </div>
 
-              {/* Details - Markdown Editor */}
               <div className="space-y-2">
                 <Label htmlFor="details">Details (Markdown)</Label>
                 <div data-color-mode="light">
@@ -199,7 +195,6 @@ const CharacterUpload = () => {
                 </p>
               </div>
 
-              {/* Image Upload */}
               <ImageUploadSection
                 image={image}
                 onImageDrop={handleImageDrop}
@@ -209,7 +204,6 @@ const CharacterUpload = () => {
                 required
               />
 
-              {/* Buttons */}
               <div className="flex gap-4 pt-2">
                 <Button type="submit" disabled={submitting} className="flex-1">
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

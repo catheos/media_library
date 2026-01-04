@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const Footer = () => {
   return (
     <footer className="border-t mt-auto">
@@ -7,12 +9,15 @@ const Footer = () => {
             © {new Date().getFullYear()} Media Library. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm">
-            <a href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
               Privacy
-            </a>
-            <a href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+            </Link>
+            <Link to="/apis" className="text-muted-foreground hover:text-foreground transition-colors">
+              APIs
+            </Link>
+            <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
               Contact
-            </a>
+            </Link>
           </div>
         </div>
       </div>

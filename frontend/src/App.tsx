@@ -25,6 +25,8 @@ import MediaCharacterRoleView from "./components/media-character/MediaCharacterR
 import MediaUserList from "./components/media-user/MediaUserList";
 import MediaUserView from "./components/media-user/MediaUserView";
 import MediaUserEdit from "./components/media-user/MediaUserEdit";
+import ApisPage from "./components/generic/ApisPage";
+import PrivacyPage from "./components/generic/PrivacyPage";
 
 // Layout component
 function Layout() {
@@ -45,18 +47,24 @@ const router = createBrowserRouter([
     path: "/",
     element: <Layout />,
     children: [
+      { path: "apis", element: <ApisPage /> },
+      { path: "privacy", element: <PrivacyPage /> },
+
       { path: "users/register", element: <Register /> },
       { path: "users/login", element: <Login /> },
       { path: "users/:id", element: <UserView /> },
       { path: "users/:id/edit", element: <UserEdit /> },
+
       { path: "media/upload", element: <MediaUpload /> },
       { path: "media", element: <MediaList /> },
       { path: "media/:id", element: <MediaView /> },
       { path: "media/:id/edit", element: <MediaEdit /> },
+
       { path: "characters/upload", element: <CharacterUpload /> },
       { path: "characters/:id", element: <CharacterView /> },
       { path: "characters/:id/edit", element: <CharacterEdit /> },
       { path: "characters", element: <CharacterList /> },
+
       { path: "media-character/upload", element: <MediaCharacterUpload /> },
       { path: "media-character/:id", element: <MediaCharacterView /> },
       { path: "media-character/roles/upload", element: <MediaCharacterRoleUpload /> },

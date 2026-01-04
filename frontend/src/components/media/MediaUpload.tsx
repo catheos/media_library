@@ -9,12 +9,38 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Database } from 'lucide-react';
 import Loading from '@/components/common/Loading';
 import ImageUploadSection from '@/components/common/ImageUploadSection';
 import FormAlerts from '@/components/common/FormAlerts';
 import BackButton from '../common/BackButton';
+import TheTVDBSearchDialog from '@/components/media/TheTVDBSearchDialog';
 import { useTabTitle } from '@/hooks/useTabTitle';
+import { thetvdbService, type TheTVDBSearchResult } from '@/services/thetvdb';
+
+// Language display names
+const LANGUAGE_NAMES: Record<string, string> = {
+  'eng': 'English',
+  'jpn': 'Japanese',
+  'spa': 'Spanish',
+  'fra': 'French',
+  'deu': 'German',
+  'ita': 'Italian',
+  'por': 'Portuguese',
+  'rus': 'Russian',
+  'kor': 'Korean',
+  'zho': 'Chinese',
+};
+
+// Status mapping from TheTVDB to your system
+const STATUS_MAP: Record<string, string> = {
+  'continuing': 'ongoing',
+  'ended': 'completed',
+  'upcoming': 'upcoming',
+  'released': 'completed',
+  'canceled': 'completed',
+  'cancelled': 'completed',
+};
 
 const MediaUpload = () => {
   const { is_authenticated, is_loading } = useAuth();
@@ -33,8 +59,8 @@ const MediaUpload = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showTheTVDBSearch, setShowTheTVDBSearch] = useState(false);
 
-  // Set title
   useTabTitle('Upload | Media');
 
   useEffect(() => {
@@ -87,6 +113,70 @@ const MediaUpload = () => {
     setError(error.message || 'Failed to upload image');
   };
 
+  // Helper function to find the appropriate media type
+  const findMediaType = (tvdbType: string): MediaType | undefined => {
+    const mediaTypeName = tvdbType === 'series' ? 'tv_series' : 'movie';
+    
+    return mediaTypes.find(
+      (t) => t.name.toLowerCase().replace(/\s+/g, '_') === mediaTypeName
+    ) || mediaTypes.find((t) => {
+      const normalized = t.name.toLowerCase().replace(/\s+/g, '_');
+      return tvdbType === 'series' 
+        ? normalized.includes('tv') || normalized.includes('series')
+        : normalized === 'movie';
+    });
+  };
+
+  // Helper function to find the appropriate status
+  const findStatus = (tvdbStatus: string): MediaStatus | undefined => {
+    const mappedStatusName = STATUS_MAP[tvdbStatus.toLowerCase()] || 'unknown';
+    return statusTypes.find(
+      (s) => s.name.toLowerCase().replace(/\s+/g, '_') === mappedStatusName
+    );
+  };
+
+  const handleTheTVDBSelect = async (result: TheTVDBSearchResult, language: string) => {
+    setError('');
+    
+    try {
+      // Find matching media type and status
+      const mediaType = findMediaType(result.type);
+      const status = findStatus(result.status);
+
+      // Update form data immediately with the already-translated result
+      setFormData({
+        title: result.name,
+        type_id: mediaType?.id.toString() || '',
+        release_year: result.year ? result.year.toString() : '',
+        status_id: status?.id.toString() || '',
+        description: result.overview || '',
+      });
+
+      // Show success message with language info
+      const languageName = LANGUAGE_NAMES[language] || language;
+      setSuccess(`Data imported from TheTVDB successfully (${languageName})!`);
+      window.scrollTo(0, 0);
+
+      // Download image asynchronously in the background
+      if (result.image_url) {
+        thetvdbService.downloadImage(result.image_url)
+          .then(imageBlob => {
+            const fileName = `${result.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.jpg`;
+            const imageFile = new File([imageBlob], fileName, { type: 'image/jpeg' });
+            setImage([imageFile]);
+          })
+          .catch(imgError => {
+            console.error('Failed to download image:', imgError);
+            // Update message to indicate image failed but data succeeded
+            setSuccess(`Data imported from TheTVDB successfully (${languageName}), but image download failed. You can upload one manually.`);
+          });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import data from TheTVDB');
+      window.scrollTo(0, 0);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -94,13 +184,13 @@ const MediaUpload = () => {
 
     if (!formData.title || !formData.type_id || !formData.status_id) {
       setError('Title, type, and status are required');
-      window.scrollTo(0, 0)
+      window.scrollTo(0, 0);
       return;
     }
 
     if (!image || !image[0]) {
       setError('Cover image is required');
-      window.scrollTo(0, 0)
+      window.scrollTo(0, 0);
       return;
     }
 
@@ -119,7 +209,7 @@ const MediaUpload = () => {
       );
 
       setSuccess('Media created successfully!');
-      window.scrollTo(0, 0)
+      window.scrollTo(0, 0);
       
       setTimeout(() => {
         navigate(`/media/${response.media.id}`);
@@ -127,10 +217,10 @@ const MediaUpload = () => {
     } catch (err) {
       if (err instanceof ApiException) {
         setError(err.message);
-        window.scrollTo(0, 0)
+        window.scrollTo(0, 0);
       } else {
         setError('An error occurred. Please try again.');
-        window.scrollTo(0, 0)
+        window.scrollTo(0, 0);
       }
     } finally {
       setSubmitting(false);
@@ -151,12 +241,8 @@ const MediaUpload = () => {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <BackButton
-        to="/media"
-        label="Back to Media"
-      />
+      <BackButton to="/media" label="Back to Media" />
 
-      {/* Navigation between upload types */}
       <div className="flex gap-2">
         <Button 
           variant="default"
@@ -177,16 +263,27 @@ const MediaUpload = () => {
       <div className="space-y-4">
         <Card className="rounded-tl-none rounded-tr-none">
           <CardHeader>
-            <CardTitle className="text-3xl">Upload Media</CardTitle>
-            <CardDescription>
-              Add a new movie, TV show, or other media to your collection
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-3xl">Upload Media</CardTitle>
+                <CardDescription>
+                  Add a new movie, TV show, or other media to your collection
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowTheTVDBSearch(true)}
+                className="flex items-center gap-2"
+              >
+                <Database className="h-4 w-4" />
+                Import from TheTVDB
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <FormAlerts error={error} success={success} />
 
-              {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
                 <Input
@@ -201,7 +298,6 @@ const MediaUpload = () => {
                 />
               </div>
 
-              {/* Type */}
               <div className="space-y-2">
                 <Label htmlFor="type_id">Type *</Label>
                 <Select
@@ -222,7 +318,6 @@ const MediaUpload = () => {
                 </Select>
               </div>
 
-              {/* Release Year */}
               <div className="space-y-2">
                 <Label htmlFor="release_year">Release Year</Label>
                 <Input
@@ -237,7 +332,6 @@ const MediaUpload = () => {
                 />
               </div>
 
-              {/* Status */}
               <div className="space-y-2">
                 <Label htmlFor="status_id">Status *</Label>
                 <Select
@@ -258,7 +352,6 @@ const MediaUpload = () => {
                 </Select>
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -271,7 +364,6 @@ const MediaUpload = () => {
                 />
               </div>
 
-              {/* Image Upload */}
               <ImageUploadSection
                 image={image}
                 onImageDrop={handleImageDrop}
@@ -281,7 +373,6 @@ const MediaUpload = () => {
                 required
               />
 
-              {/* Buttons */}
               <div className="flex gap-4 pt-2">
                 <Button type="submit" disabled={submitting} className="flex-1">
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -300,6 +391,12 @@ const MediaUpload = () => {
           </CardContent>
         </Card>
       </div>
+
+      <TheTVDBSearchDialog
+        open={showTheTVDBSearch}
+        onOpenChange={setShowTheTVDBSearch}
+        onSelect={handleTheTVDBSelect}
+      />
     </div>
   );
 };

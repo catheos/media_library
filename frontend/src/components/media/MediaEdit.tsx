@@ -7,15 +7,41 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone';
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
 import Loading from "@/components/common/Loading";
 import ErrorCard from "@/components/common/ErrorCard";
 import FormAlerts from "@/components/common/FormAlerts";
+import ImageUploadSection from '@/components/common/ImageUploadSection';
 import { mediaService, ApiException } from "@/api";
 import type { Media, MediaType, MediaStatus } from "@/api";
 import BackButton from "../common/BackButton";
+import TheTVDBSearchDialog from '@/components/media/TheTVDBSearchDialog';
 import { useTabTitle } from "@/hooks/useTabTitle";
+import { thetvdbService, type TheTVDBSearchResult } from '@/services/thetvdb';
+
+// Language display names
+const LANGUAGE_NAMES: Record<string, string> = {
+  'eng': 'English',
+  'jpn': 'Japanese',
+  'spa': 'Spanish',
+  'fra': 'French',
+  'deu': 'German',
+  'ita': 'Italian',
+  'por': 'Portuguese',
+  'rus': 'Russian',
+  'kor': 'Korean',
+  'zho': 'Chinese',
+};
+
+// Status mapping from TheTVDB to your system
+const STATUS_MAP: Record<string, string> = {
+  'continuing': 'ongoing',
+  'ended': 'completed',
+  'upcoming': 'upcoming',
+  'released': 'completed',
+  'canceled': 'completed',
+  'cancelled': 'completed',
+};
 
 const MediaEdit = () => {
   const { id } = useParams();
@@ -32,13 +58,13 @@ const MediaEdit = () => {
   const [image, setImage] = useState<File[] | undefined>();
   const [originalImage, setOriginalImage] = useState<File[] | undefined>();
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [mediaTypes, setMediaTypes] = useState<MediaType[]>([]);
   const [statusTypes, setStatusTypes] = useState<MediaStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showTheTVDBSearch, setShowTheTVDBSearch] = useState(false);
 
   const isOwner = current_user?.id === media?.created_by.id;
 
@@ -128,6 +154,84 @@ const MediaEdit = () => {
   const handleImageError = (error: Error) => {
     setError(error.message || 'Failed to upload image');
     window.scrollTo(0, 0)
+  };
+
+  // Helper function to find the appropriate media type
+  const findMediaType = (tvdbType: string): MediaType | undefined => {
+    const mediaTypeName = tvdbType === 'series' ? 'tv_series' : 'movie';
+    
+    return mediaTypes.find(
+      (t) => t.name.toLowerCase().replace(/\s+/g, '_') === mediaTypeName
+    ) || mediaTypes.find((t) => {
+      const normalized = t.name.toLowerCase().replace(/\s+/g, '_');
+      return tvdbType === 'series' 
+        ? normalized.includes('tv') || normalized.includes('series')
+        : normalized === 'movie';
+    });
+  };
+
+  // Helper function to find the appropriate status
+  const findStatus = (tvdbStatus: string): MediaStatus | undefined => {
+    const mappedStatusName = STATUS_MAP[tvdbStatus.toLowerCase()] || 'unknown';
+    return statusTypes.find(
+      (s) => s.name.toLowerCase().replace(/\s+/g, '_') === mappedStatusName
+    );
+  };
+
+  const getTheTVDBType = (): 'series' | 'movie' | undefined => {
+    if (!formData.type_id) return undefined;
+    
+    const mediaType = mediaTypes.find(t => t.id.toString() === formData.type_id);
+    if (!mediaType) return undefined;
+    
+    const typeName = mediaType.name.toLowerCase().replace(/\s+/g, '_');
+    
+    if (typeName.includes('tv') || typeName.includes('series')) return 'series';
+    if (typeName === 'movie') return 'movie';
+    
+    return undefined;
+  };
+
+  const handleTheTVDBSelect = async (result: TheTVDBSearchResult, language: string) => {
+    setError('');
+    
+    try {
+      // Find matching media type and status
+      const mediaType = findMediaType(result.type);
+      const status = findStatus(result.status);
+
+      // Update form data immediately with the already-translated result
+      setFormData({
+        title: result.name,
+        type_id: mediaType?.id.toString() || '',
+        release_year: result.year ? result.year.toString() : '',
+        status_id: status?.id.toString() || '',
+        description: result.overview || '',
+      });
+
+      // Show success message with language info
+      const languageName = LANGUAGE_NAMES[language] || language;
+      setSuccess(`Data imported from TheTVDB successfully (${languageName})!`);
+      window.scrollTo(0, 0);
+
+      // Download image asynchronously in the background
+      if (result.image_url) {
+        thetvdbService.downloadImage(result.image_url)
+          .then(imageBlob => {
+            const fileName = `${result.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.jpg`;
+            const imageFile = new File([imageBlob], fileName, { type: 'image/jpeg' });
+            setImage([imageFile]);
+          })
+          .catch(imgError => {
+            console.error('Failed to download image:', imgError);
+            // Update message to indicate image failed but data succeeded
+            setSuccess(`Data imported from TheTVDB successfully (${languageName}), but image download failed. You can upload one manually.`);
+          });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import data from TheTVDB');
+      window.scrollTo(0, 0);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -223,10 +327,22 @@ const MediaEdit = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl">Edit Media</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Update media information
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-3xl">Edit Media</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Update media information
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowTheTVDBSearch(true)}
+                className="flex items-center gap-2"
+              >
+                <Database className="h-4 w-4" />
+                Import from TheTVDB
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -317,74 +433,14 @@ const MediaEdit = () => {
               </div>
 
               {/* Cover Image Update */}
-              <div className="space-y-2">
-                <Label>Cover Image</Label>
-                <Dropzone
-                  accept={{
-                    'image/jpeg': ['.jpg', '.jpeg'],
-                    'image/png': ['.png'],
-                    'image/webp': ['.webp']
-                  }}
-                  onDrop={handleImageDrop}
-                  onError={handleImageError}
-                  src={image}
-                  maxSize={5 * 1024 * 1024}
-                >
-                  <DropzoneEmptyState />
-                  <DropzoneContent />
-                </Dropzone>
-                {image && image[0] && (
-                  <div className="flex flex-col gap-2 mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPreview(true)}
-                      className="w-full"
-                    >
-                      Preview Image
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setImage(undefined)}
-                      className="w-full"
-                    >
-                      Clear Image
-                    </Button>
-                  </div>
-                )}
-                {!image && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Upload a new image to replace the current cover
-                  </p>
-                )}
-              </div>
-
-              {/* Image Preview Modal */}
-              {showPreview && image && image[0] && (
-                <div 
-                  className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-                  onClick={() => setShowPreview(false)}
-                >
-                  <div className="relative max-w-4xl max-h-[90vh]">
-                    <img
-                      src={URL.createObjectURL(image[0])}
-                      alt="Preview"
-                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setShowPreview(false)}
-                      className="absolute top-4 right-4"
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <ImageUploadSection
+                image={image}
+                onImageDrop={handleImageDrop}
+                onImageError={handleImageError}
+                onClear={() => setImage(undefined)}
+                label="Cover Image"
+                required={false}
+              />
 
               {/* Buttons */}
               <div className="flex gap-4 pt-2">
@@ -405,6 +461,15 @@ const MediaEdit = () => {
           </CardContent>
         </Card>
       </div>
+
+      <TheTVDBSearchDialog
+        open={showTheTVDBSearch}
+        onOpenChange={setShowTheTVDBSearch}
+        onSelect={handleTheTVDBSelect}
+        initialQuery={formData.title}
+        initialType={getTheTVDBType()}
+        initialYear={formData.release_year ? parseInt(formData.release_year) : undefined}
+      />
     </div>
   );
 };
