@@ -59,7 +59,7 @@ const PrivacyPage = () => {
             <p className="text-muted-foreground mb-3">
               The application includes optional features that query external APIs from your server:
             </p>
-            <div className="space-y-3 text-muted-foreground">
+            <div className="space-y-4 text-muted-foreground">
               <div className="border-l-2 border-muted pl-4">
                 <h3 className="font-medium text-foreground mb-1">TheTVDB</h3>
                 <p className="mb-2">
@@ -74,6 +74,34 @@ const PrivacyPage = () => {
                     className="underline hover:text-foreground"
                   >
                     TheTVDB's Privacy Policy
+                  </a>{' '}
+                  to understand how they handle API requests.
+                </p>
+              </div>
+
+              <div className="border-l-2 border-muted pl-4">
+                <h3 className="font-medium text-foreground mb-1">Open Library</h3>
+                <p className="mb-2">
+                  When you use the "Import from OpenLibrary" feature, the application makes API requests to Open Library (operated by the Internet Archive) on your behalf. These requests originate from your server's IP address, not from the application developers.
+                </p>
+                <p>
+                  Please review{' '}
+                  <a 
+                    href="https://openlibrary.org/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    Open Library's Privacy Policy
+                  </a>{' '}
+                  and{' '}
+                  <a 
+                    href="https://archive.org/about/terms.php" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    Internet Archive's Terms of Use
                   </a>{' '}
                   to understand how they handle API requests.
                 </p>

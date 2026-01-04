@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Database } from "lucide-react";
+import { Loader2, Database, BookOpen } from "lucide-react";
 import Loading from "@/components/common/Loading";
 import ErrorCard from "@/components/common/ErrorCard";
 import FormAlerts from "@/components/common/FormAlerts";
@@ -16,8 +16,10 @@ import { mediaService, ApiException } from "@/api";
 import type { Media, MediaType, MediaStatus } from "@/api";
 import BackButton from "../common/BackButton";
 import TheTVDBSearchDialog from '@/components/media/TheTVDBSearchDialog';
+import OpenLibrarySearchDialog from '@/components/media/OpenLibrarySearchDialog';
 import { useTabTitle } from "@/hooks/useTabTitle";
 import { thetvdbService, type TheTVDBSearchResult } from '@/services/thetvdb';
+import { openLibraryService, type OpenLibrarySearchResult } from '@/services/openlibrary';
 
 // Language display names
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -65,6 +67,7 @@ const MediaEdit = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showTheTVDBSearch, setShowTheTVDBSearch] = useState(false);
+  const [showOpenLibrarySearch, setShowOpenLibrarySearch] = useState(false);
 
   const isOwner = current_user?.id === media?.created_by.id;
 
@@ -170,12 +173,32 @@ const MediaEdit = () => {
     });
   };
 
+  // Helper function to find novel media type
+  const findNovelMediaType = (): MediaType | undefined => {
+    return mediaTypes.find(
+      (t) => t.name.toLowerCase().replace(/\s+/g, '_') === 'novel'
+    ) || mediaTypes.find((t) => {
+      const normalized = t.name.toLowerCase();
+      return normalized.includes('novel');
+    });
+  };
+
   // Helper function to find the appropriate status
   const findStatus = (tvdbStatus: string): MediaStatus | undefined => {
     const mappedStatusName = STATUS_MAP[tvdbStatus.toLowerCase()] || 'unknown';
     return statusTypes.find(
       (s) => s.name.toLowerCase().replace(/\s+/g, '_') === mappedStatusName
     );
+  };
+
+  // Helper function to find completed status for books
+  const findCompletedStatus = (): MediaStatus | undefined => {
+    return statusTypes.find(
+      (s) => s.name.toLowerCase().replace(/\s+/g, '_') === 'completed'
+    ) || statusTypes.find((s) => {
+      const normalized = s.name.toLowerCase();
+      return normalized.includes('complete') || normalized.includes('finished');
+    });
   };
 
   const getTheTVDBType = (): 'series' | 'movie' | undefined => {
@@ -203,9 +226,9 @@ const MediaEdit = () => {
       // Update form data immediately with the already-translated result
       setFormData({
         title: result.name,
-        type_id: mediaType?.id.toString() || '',
+        type_id: mediaType?.id.toString() || formData.type_id,
         release_year: result.year ? result.year.toString() : '',
-        status_id: status?.id.toString() || '',
+        status_id: status?.id.toString() || formData.status_id,
         description: result.overview || '',
       });
 
@@ -230,6 +253,40 @@ const MediaEdit = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import data from TheTVDB');
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleOpenLibrarySelect = async (result: OpenLibrarySearchResult) => {
+    setError('');
+    
+    try {
+      // Find matching media type and status
+      const mediaType = findNovelMediaType();
+      const status = findCompletedStatus();
+
+      // Fetch full work details to get complete description
+      let description = '';
+      try {
+        const workDetails = await openLibraryService.getWorkDetails(result.id);
+        description = workDetails.description || '';
+      } catch (detailsError) {
+        console.error('Failed to fetch work details:', detailsError);
+      }
+
+      // Update form data
+      setFormData({
+        title: result.title,
+        type_id: mediaType?.id.toString() || formData.type_id,
+        release_year: result.first_publish_year ? result.first_publish_year.toString() : '',
+        status_id: status?.id.toString() || formData.status_id,
+        description: description,
+      });
+
+      setSuccess('Data imported from OpenLibrary successfully! Note: You will need to upload a cover image manually.');
+      window.scrollTo(0, 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import data from OpenLibrary');
       window.scrollTo(0, 0);
     }
   };
@@ -327,20 +384,26 @@ const MediaEdit = () => {
 
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-3xl">Edit Media</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Update media information
-                </p>
-              </div>
+            <CardTitle className="text-3xl">Edit Media</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Update media information
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
                 variant="outline"
                 onClick={() => setShowTheTVDBSearch(true)}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2"
               >
                 <Database className="h-4 w-4" />
                 Import from TheTVDB
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowOpenLibrarySearch(true)}
+                className="flex items-center justify-center gap-2"
+              >
+                <BookOpen className="h-4 w-4" />
+                Import from OpenLibrary
               </Button>
             </div>
           </CardHeader>
@@ -468,6 +531,14 @@ const MediaEdit = () => {
         onSelect={handleTheTVDBSelect}
         initialQuery={formData.title}
         initialType={getTheTVDBType()}
+        initialYear={formData.release_year ? parseInt(formData.release_year) : undefined}
+      />
+
+      <OpenLibrarySearchDialog
+        open={showOpenLibrarySearch}
+        onOpenChange={setShowOpenLibrarySearch}
+        onSelect={handleOpenLibrarySelect}
+        initialQuery={formData.title}
         initialYear={formData.release_year ? parseInt(formData.release_year) : undefined}
       />
     </div>

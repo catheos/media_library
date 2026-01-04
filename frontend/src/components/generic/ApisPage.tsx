@@ -18,7 +18,7 @@ const ApisPage = () => {
             This application uses the following external services
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div>
             <h3 className="font-semibold text-lg mb-2">TheTVDB</h3>
             <p className="text-sm text-muted-foreground mb-2">
@@ -34,8 +34,22 @@ const ApisPage = () => {
               . We are not endorsed or certified by TheTVDB.com or its affiliates.
             </p>
           </div>
-          
-          {/* Add more APIs here as you integrate them */}
+
+          <div>
+            <h3 className="font-semibold text-lg mb-2">Open Library</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Book metadata import functionality is powered by{' '}
+              <a 
+                href="https://openlibrary.org" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground"
+              >
+                Open Library
+              </a>
+              , an open, editable library catalog by the Internet Archive. We are not endorsed or certified by Open Library or the Internet Archive.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
