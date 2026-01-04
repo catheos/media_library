@@ -1,6 +1,7 @@
 // src/services/thetvdb.ts
 const THETVDB_API_KEY = import.meta.env.VITE_THETVDB_API_KEY;
 const THETVDB_BASE_URL = 'https://api4.thetvdb.com/v4';
+const SEARCH_LIMIT = 10;
 
 interface TheTVDBAuth {
   token: string;
@@ -73,6 +74,7 @@ class TheTVDBService {
     
     const params = new URLSearchParams({
       query,
+      limit: SEARCH_LIMIT.toString(),
       ...(type && { type }),
       ...(year && { year }),
       ...(country && { country })
