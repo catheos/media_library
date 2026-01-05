@@ -202,7 +202,7 @@ const TheTVDBSearchDialog = ({
                 <Input
                   id="year"
                   type="number"
-                  placeholder="2024"
+                  placeholder="e.g. 2020"
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
                   min="1800"

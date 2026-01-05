@@ -47,14 +47,14 @@ interface AniListDetails {
 }
 
 const SEARCH_QUERY = `
-query ($search: String, $type: MediaType, $format: MediaFormat, $page: Int, $perPage: Int) {
+query ($search: String, $type: MediaType, $format: MediaFormat, $year: String, $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {
     pageInfo {
       total
       currentPage
       hasNextPage
     }
-    media(search: $search, type: $type, format: $format, sort: SEARCH_MATCH) {
+    media(search: $search, type: $type, format: $format, startDate_like: $year, sort: SEARCH_MATCH) {
       id
       type
       format
@@ -156,6 +156,7 @@ class AniListService {
     query: string,
     type?: 'ANIME' | 'MANGA',
     format?: string,
+    year?: number,
     page: number = 1
   ): Promise<AniListSearchResult[]> {
     const variables: any = {
@@ -167,6 +168,7 @@ class AniListService {
     // only add if specified
     if (type) variables.type = type;
     if (format) variables.format = format;
+    if (year) variables.year = `${year}%`;
 
     const data = await this.query(SEARCH_QUERY, variables);
 

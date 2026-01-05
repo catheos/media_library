@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Film, Book } from 'lucide-react';
+import { Search, Loader2, Film, Book, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ interface AniListSearchDialogProps {
   onSelect: (result: AniListSearchResult, type: 'ANIME' | 'MANGA' | 'any') => void;
   initialQuery?: string;
   initialType?: 'ANIME' | 'MANGA' | 'NOVEL';
+  initialYear?: number;
 }
 
 const AniListSearchDialog = ({
@@ -26,11 +27,14 @@ const AniListSearchDialog = ({
   onOpenChange,
   onSelect,
   initialQuery,
-  initialType
+  initialType,
+  initialYear
 }: AniListSearchDialogProps) => {
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'ANIME' | 'MANGA' | 'any'>('any');
   const [format, setFormat] = useState<string>('any');
+  const [year, setYear] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [results, setResults] = useState<AniListSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
@@ -43,6 +47,7 @@ const AniListSearchDialog = ({
         const newType = 'MANGA';
         setType(newType);
         setFormat('NOVEL');
+        setYear(initialYear ? initialYear.toString() : '');
         prevTypeRef.current = newType;
       } else if (initialType) {
         setType(initialType);
@@ -52,7 +57,7 @@ const AniListSearchDialog = ({
         prevTypeRef.current = 'any';
       }
     }
-  }, [open, initialQuery, initialType]);
+  }, [open, initialQuery, initialType, initialYear]);
 
 
   // when type changes, reset format
@@ -69,6 +74,7 @@ const AniListSearchDialog = ({
       setQuery('');
       setType('any');
       setFormat('any')
+      setYear('');
       setResults([]);
       setError('');
     }
@@ -88,7 +94,8 @@ const AniListSearchDialog = ({
       const searchResults = await anilistService.search(
         query,
         type === 'any' ? undefined: type,
-        format === 'any' ? undefined: format
+        format === 'any' ? undefined: format,
+        year && parseInt(year) ? parseInt(year) : undefined
       );
 
       setResults(searchResults);
@@ -116,6 +123,7 @@ const AniListSearchDialog = ({
     setQuery('');
     setType('any');
     setFormat('any');
+    setYear('');
     setResults([]);
     setError('');
   };
@@ -158,52 +166,87 @@ const AniListSearchDialog = ({
             </Button>
           </div>
 
-          {/* Type Filter */}
-          <div className="space-y-2">
-            <Label htmlFor="type">Type</Label>
-            <Select value={type} onValueChange={(value) => setType(value as 'ANIME' | 'MANGA' | 'any')}>
-              <SelectTrigger id="type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="ANIME">Anime</SelectItem>
-                <SelectItem value="MANGA">Manga</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Filters Toggle */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full justify-between"
+          >
+            <span>Advanced Filters</span>
+            {showFilters ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
           
-          {/* Format Filter */}
-          <div className="space-y-2">
-            <Label htmlFor="format">Format</Label>
-            <Select value={format} onValueChange={setFormat}>
-              <SelectTrigger id="format">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any</SelectItem>
-                {/* Anime formats - only show if ANIME or ANY */}
-                {(type === 'any' || type === 'ANIME') && (
-                  <>
-                    <SelectItem value="TV">TV</SelectItem>
-                    <SelectItem value="MOVIE">Movie</SelectItem>
-                    <SelectItem value="OVA">OVA</SelectItem>
-                    <SelectItem value="ONA">ONA</SelectItem>
-                    <SelectItem value="SPECIAL">Special</SelectItem>
-                    <SelectItem value="MUSIC">Music</SelectItem>
-                  </>
-                )}
-                {/* Manga formats - only show if MANGA or ANY */}
-                {(type === 'any' || type === 'MANGA') && (
-                  <>
+          {/* Collapsible Filters */}
+          {showFilters && (
+            <div className="space-y-4 pt-2 border-t">
+              {/* Type Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="type">Type</Label>
+                <Select value={type} onValueChange={(value) => setType(value as 'ANIME' | 'MANGA' | 'any')}>
+                  <SelectTrigger id="type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any</SelectItem>
+                    <SelectItem value="ANIME">Anime</SelectItem>
                     <SelectItem value="MANGA">Manga</SelectItem>
-                    <SelectItem value="NOVEL">Novel</SelectItem>
-                    <SelectItem value="ONE_SHOT">One Shot</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Format Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="format">Format</Label>
+                <Select value={format} onValueChange={setFormat}>
+                  <SelectTrigger id="format">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any</SelectItem>
+                    {/* Anime formats - only show if ANIME or ANY */}
+                    {(type === 'any' || type === 'ANIME') && (
+                      <>
+                        <SelectItem value="TV">TV</SelectItem>
+                        <SelectItem value="MOVIE">Movie</SelectItem>
+                        <SelectItem value="OVA">OVA</SelectItem>
+                        <SelectItem value="ONA">ONA</SelectItem>
+                        <SelectItem value="SPECIAL">Special</SelectItem>
+                        <SelectItem value="MUSIC">Music</SelectItem>
+                      </>
+                    )}
+                    {/* Manga formats - only show if MANGA or ANY */}
+                    {(type === 'any' || type === 'MANGA') && (
+                      <>
+                        <SelectItem value="MANGA">Manga</SelectItem>
+                        <SelectItem value="NOVEL">Novel</SelectItem>
+                        <SelectItem value="ONE_SHOT">One Shot</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Year Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="year">Year (optional)</Label>
+                <Input
+                  id="year"
+                  type="number"
+                  placeholder="e.g. 2020"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  min="1900"
+                  max="2100"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
