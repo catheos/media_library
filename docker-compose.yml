@@ -3,11 +3,13 @@ services:
     image: mariadb:11
     container_name: media_library_db
     restart: unless-stopped
+    env_file:
+      - .env.docker
     environment:
-      MYSQL_ROOT_PASSWORD: <root_password_here>
-      MYSQL_DATABASE: media_library_db
-      MYSQL_USER: media_library
-      MYSQL_PASSWORD: <user_password_here>
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     volumes:
@@ -28,15 +30,27 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_API_HOST: http://<server_ip>:3000
-        VITE_THETVDB_API_KEY: <thetvdb_api_key>
+        VITE_API_HOST: ${VITE_API_HOST}
+        VITE_THETVDB_API_KEY: ${VITE_THETVDB_API_KEY}
     container_name: media_library_app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     env_file:
-      - ./backend/.env.docker
+      - .env.docker
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASS: ${MYSQL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      MEDIA_PAGE_SIZE: ${MEDIA_PAGE_SIZE}
+      CHARACTER_PAGE_SIZE: ${CHARACTER_PAGE_SIZE}
+      MEDIA_USER_PAGE_SIZE: ${MEDIA_USER_PAGE_SIZE}
     volumes:
       - uploads:/app/uploads
     ports:

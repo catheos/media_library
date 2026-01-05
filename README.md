@@ -25,34 +25,19 @@ Self-hosted media library that lets you organize, track, and manage all your per
 
 2. **Configure environment variables**
 ```bash
-   # Copy example env files
-   cp backend/.env.example backend/.env.docker
-   cp frontend/.env.example frontend/.env
+   # Copy example env file
+   cp .env.docker.example .env.docker
    
-   # Edit backend/.env.docker with your settings
-   nano backend/.env.docker
+   # Edit .env.docker with your settings
+   nano .env.docker
 ```
-   
-   Update these values in `backend/.env.docker`:
-   - `DB_PASS` - Set a secure database password
-   - `JWT_SECRET` - Generate with: `openssl rand -base64 32`
 
-   Update these values in `frontend/.env`:
-   - `VITE_THETVDB_API_KEY` - Set your API key if you want TheTVDB functionality
-
-3. **Update docker-compose.yml**
-   
-   Edit `docker-compose.yml` and set:
-   - `MYSQL_PASSWORD` to match your `DB_PASS`
-   - `VITE_API_HOST` to your server IP (e.g., `http://192.168.1.100:3000`)
-
-4. **Build and deploy**
+3. **Build and deploy**
 ```bash
-   bash ./build.sh
-   docker-compose up -d
+   docker-compose --env-file .env.docker up -d --build
 ```
 
-5. **Access the application**
+4. **Access the application**
    
    Open `http://localhost:3000` or `http://YOUR_SERVER_IP:3000` in your browser
 

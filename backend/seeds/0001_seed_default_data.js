@@ -3,8 +3,8 @@
  * @returns { Promise<void> } 
  */
 exports.seed = async function(knex) {
-  await knex('media_types').del()
-  await knex('media_types').insert([
+  // Media types
+  const mediaTypes = [
     {name: 'novel'},
     {name: 'tv_series'},
     {name: 'anime'},
@@ -12,24 +12,37 @@ exports.seed = async function(knex) {
     {name: 'comic'},
     {name: 'manga'},
     {name: 'video_game'}
-  ]);
+  ];
+  
+  await knex('media_types')
+    .insert(mediaTypes)
+    .onConflict('name')
+    .ignore();
 
-  await knex('media_status_types').del()
-  await knex('media_status_types').insert([
+  // Media status types
+  const mediaStatusTypes = [
     {name: 'ongoing'},
     {name: 'completed'},
     {name: 'hiatus'},
     {name: 'upcoming'}
-  ])
+  ];
+  
+  await knex('media_status_types')
+    .insert(mediaStatusTypes)
+    .onConflict('name')
+    .ignore();
 
-  await knex('user_media_status_types').del()
-  await knex('user_media_status_types').insert([
+  // User media status types
+  const userMediaStatusTypes = [
     {name: 'planning'},
     {name: 'current'},
     {name: 'completed'},
     {name: 'dropped'},
     {name: 'on_hold'}
-  ])
-
+  ];
+  
   await knex('user_media_status_types')
+    .insert(userMediaStatusTypes)
+    .onConflict('name')
+    .ignore();
 };
