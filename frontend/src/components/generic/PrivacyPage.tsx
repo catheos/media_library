@@ -80,6 +80,34 @@ const PrivacyPage = () => {
               </div>
 
               <div className="border-l-2 border-muted pl-4">
+                <h3 className="font-medium text-foreground mb-1">AniList</h3>
+                <p className="mb-2">
+                  When you use the "Import from AniList" feature, the application makes API requests to AniList on your behalf. These requests originate from your server's IP address, not from the application developers.
+                </p>
+                <p>
+                  Please review{' '}
+                  <a 
+                    href="https://anilist.co/terms" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    AniList's Terms of Service
+                  </a>{' '}
+                  and{' '}
+                  <a 
+                    href="https://anilist.co/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    Privacy Policy
+                  </a>{' '}
+                  to understand how they handle API requests.
+                </p>
+              </div>
+
+              <div className="border-l-2 border-muted pl-4">
                 <h3 className="font-medium text-foreground mb-1">Open Library</h3>
                 <p className="mb-2">
                   When you use the "Import from OpenLibrary" feature, the application makes API requests to Open Library (operated by the Internet Archive) on your behalf. These requests originate from your server's IP address, not from the application developers.

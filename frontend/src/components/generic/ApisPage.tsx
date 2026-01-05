@@ -36,6 +36,22 @@ const ApisPage = () => {
           </div>
 
           <div>
+            <h3 className="font-semibold text-lg mb-2">AniList</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Anime and manga metadata import functionality is powered by{' '}
+              <a 
+                href="https://anilist.co" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground"
+              >
+                AniList
+              </a>
+              . We are not endorsed or certified by AniList or its affiliates.
+            </p>
+          </div>
+
+          <div>
             <h3 className="font-semibold text-lg mb-2">Open Library</h3>
             <p className="text-sm text-muted-foreground mb-2">
               Book metadata import functionality is powered by{' '}

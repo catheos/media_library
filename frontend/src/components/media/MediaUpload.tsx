@@ -19,6 +19,8 @@ import OpenLibrarySearchDialog from '@/components/media/OpenLibrarySearchDialog'
 import { useTabTitle } from '@/hooks/useTabTitle';
 import { thetvdbService, type TheTVDBSearchResult } from '@/services/thetvdb';
 import { openLibraryService, type OpenLibrarySearchResult } from '@/services/openlibrary';
+import { type AniListSearchResult } from '@/services/anilist';
+import AniListSearchDialog from './AniListSearchDialog';
 
 // Language display names
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -34,7 +36,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
   'zho': 'Chinese',
 };
 
-// Status mapping from TheTVDB to your system
+// Status mapping from TheTVDB to my system
 const STATUS_MAP: Record<string, string> = {
   'continuing': 'ongoing',
   'ended': 'completed',
@@ -42,6 +44,15 @@ const STATUS_MAP: Record<string, string> = {
   'released': 'completed',
   'canceled': 'completed',
   'cancelled': 'completed',
+};
+
+// Status mapping from anilist to my system
+const ANILIST_STATUS_MAP: Record<string, string> = {
+  'FINISHED': 'completed',
+  'RELEASING': 'ongoing',
+  'NOT_YET_RELEASED': 'upcoming',
+  'CANCELLED': 'completed',
+  'HIATUS': 'ongoing',
 };
 
 const MediaUpload = () => {
@@ -63,6 +74,7 @@ const MediaUpload = () => {
   const [success, setSuccess] = useState('');
   const [showTheTVDBSearch, setShowTheTVDBSearch] = useState(false);
   const [showOpenLibrarySearch, setShowOpenLibrarySearch] = useState(false);
+  const [showAniListSearch, setShowAniListSearch] = useState(false);
 
   useTabTitle('Upload | Media');
 
@@ -158,6 +170,24 @@ const MediaUpload = () => {
     });
   };
 
+  // Helper functions for anime/manga
+  const findAnimeMediaType = (): MediaType | undefined => {
+    return mediaTypes.find(
+      (t) => t.name.toLowerCase().replace(/\s+/g, '_') === 'anime'
+    ) || mediaTypes.find((t) => {
+      const normalized = t.name.toLowerCase();
+      return normalized.includes('anime');
+    });
+  };
+  const findMangaMediaType = (): MediaType | undefined => {
+    return mediaTypes.find(
+      (t) => t.name.toLowerCase().replace(/\s+/g, '_') === 'manga'
+    ) || mediaTypes.find((t) => {
+      const normalized = t.name.toLowerCase();
+      return normalized.includes('manga') || normalized.includes('comic');
+    });
+  };
+
   const handleTheTVDBSelect = async (result: TheTVDBSearchResult, language: string) => {
     setError('');
     
@@ -230,6 +260,60 @@ const MediaUpload = () => {
       window.scrollTo(0, 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import data from OpenLibrary');
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleAniListSelect = async (result: AniListSearchResult) => {
+    setError('');
+    
+    try {
+      let mediaType: MediaType | undefined;
+
+      // Determine media type based on format, with fallbacks
+      switch (result.format) {
+        case 'NOVEL':
+          mediaType = findNovelMediaType();
+          break;
+        case 'MANGA':
+        case 'ONE_SHOT':
+          mediaType = findMangaMediaType();
+          break;
+        case 'TV':
+        case 'MOVIE':
+        case 'OVA':
+        case 'ONA':
+        case 'SPECIAL':
+        case 'MUSIC':
+          mediaType = findAnimeMediaType();
+          break;
+        default:
+          // Fallback to type if format is unknown
+          mediaType = result.type === 'ANIME' ? findAnimeMediaType() : findMangaMediaType();
+      }
+
+      const mappedStatusName = ANILIST_STATUS_MAP[result.status || ''] || 'unknown';
+      const status = statusTypes.find(
+        (s) => s.name.toLowerCase().replace(/\s+/g, '_') === mappedStatusName
+      );
+
+      const title = result.title.english || result.title.romaji || result.title.native;
+      const description = result.description 
+        ? result.description.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '')
+        : '';
+
+      setFormData({
+        title: title,
+        type_id: mediaType?.id.toString() || '',
+        release_year: result.startDate?.year ? result.startDate.year.toString() : '',
+        status_id: status?.id.toString() || '',
+        description: description,
+      });
+
+      setSuccess(`Data imported from AniList successfully (${result.format || result.type})!`);
+      window.scrollTo(0, 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import data from AniList');
       window.scrollTo(0, 0);
     }
   };
@@ -325,6 +409,7 @@ const MediaUpload = () => {
               Add a new movie, TV show, book, or other media to your collection
             </CardDescription>
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              {/* TheTVDB */}
               <Button
                 variant="outline"
                 onClick={() => setShowTheTVDBSearch(true)}
@@ -333,6 +418,16 @@ const MediaUpload = () => {
                 <Database className="h-4 w-4" />
                 Import from TheTVDB
               </Button>
+              {/* AniList */}
+              <Button
+                variant="outline"
+                onClick={() => setShowAniListSearch(true)}
+                className="flex items-center justify-center gap-2"
+              >
+                <Database className="h-4 w-4" />
+                Import from AniList
+              </Button>
+              {/* Open Library */}
               <Button
                 variant="outline"
                 onClick={() => setShowOpenLibrarySearch(true)}
@@ -465,6 +560,12 @@ const MediaUpload = () => {
         open={showOpenLibrarySearch}
         onOpenChange={setShowOpenLibrarySearch}
         onSelect={handleOpenLibrarySelect}
+      />
+
+      <AniListSearchDialog
+        open={showAniListSearch}
+        onOpenChange={setShowAniListSearch}
+        onSelect={handleAniListSelect}
       />
     </div>
   );
