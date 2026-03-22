@@ -19,27 +19,27 @@ Self-hosted media library that lets you organize, track, and manage all your per
 
 1. **Clone the repository**
 ```bash
-   git clone https://github.com/catheos/media_library.git
-   cd media_library
+git clone https://github.com/catheos/media_library.git
+cd media_library
 ```
 
 2. **Configure environment variables**
 ```bash
-   # Copy example env file
-   cp .env.docker.example .env.docker
+# Copy example env file
+cp .env.docker.example .env.docker
    
-   # Edit .env.docker with your settings
-   nano .env.docker
+# Edit .env.docker with your settings
+nano .env.docker
 ```
 
 3. **Build and deploy**
 ```bash
-   docker-compose --env-file .env.docker up -d --build
+docker-compose --env-file .env.docker up -d --build
 ```
 
 4. **Access the application**
-   
-   Open `http://localhost:3000` or `http://YOUR_SERVER_IP:3000` in your browser
+
+Open `http://localhost:3000` or `http://YOUR_SERVER_IP:3000` in your browser
 
 ### Useful Commands
 ```bash
